@@ -41,7 +41,7 @@ class drive:
     
     def findSlotS3(self):
         
-        cardIOController = subprocess.check_output("lspci | grep -i SAS3224", shell=True, encoding = 'utf-8')
+        cardIOController = subprocess.check_output("lspci | grep -i 'SAS3'", shell=True, encoding = 'utf-8')
         cardIOController = re.search("(SAS3224)", cardIOController).group()
         
         if cardIOController != None:
@@ -180,7 +180,7 @@ if supportedBoards.count(boardtype.upper())>0:
              
             
     else:
-        print("\nInvalid arguments used. dinfo accepts: \n\ndevice --> lists devices found in /dev.\n\nlist all --> list info for all devices.\n\nlist *device id (da#)*: --> lists info for specific device.\n*------------------------------------------------------------------------------*\n")
+        print("\nInvalid arguments used. dinfo accepts: \n\nlist devices --> lists devices found in /dev.\n\nlist all --> list info for all devices.\n\nlist *device id (da#)*: --> lists info for specific device.\n*------------------------------------------------------------------------------*\n")
 
 
 else:
