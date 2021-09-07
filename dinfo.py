@@ -2,7 +2,7 @@
 
 
 # dinfo
-# gather info about drive errors and power cycle counts, outputting the drives id name and slot
+# Gathers info about drive errors and power cycle counts, and finds the slots the drives should be in. 
 # Copyright 2021, Mike McPhee <mmcphee@45drives.com>
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
