@@ -41,7 +41,7 @@ class drive:
     
     def findSlotS3(self):
      
-        cardIOController = subprocess.check_output("lspci | grep -i 'LSI SAS'", shell=True, encoding = 'utf-8')
+        #cardIOController = subprocess.check_output("lspci | grep -i 'LSI SAS'", shell=True, encoding = 'utf-8')
         cardIOController = subprocess.check_output("lspci | grep -i 'SAS3'", shell=True, encoding = 'utf-8')
         cardIOController = re.search("(SAS3224)", cardIOController).group()
         
