@@ -1,17 +1,8 @@
 #!/bin/bash
 # Brett Kelly Oct 2021
 # 45Drives
-# Version 1.0 prerelease
-warning(){
-    read -p "This is currently pre-release, use at your own risk. To continue enter 'y' " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]];then
-        :
-    else
-        echo "Exiting..."
-        exit 1
-    fi
-}
+# Version 1.0 stable
+
 
 usage() { # Help
 cat << EOF
@@ -94,9 +85,6 @@ if [ -z $OSD_LIST ] || [ -z $DB_DEVICE ] || [ -z $BLOCK_DB_SIZE_BYTES ]; then
     echo "Input required. See ./`basename "$0"` -h for usage details"
     exit 1
 fi
-
-# THROW PRE_RELEASE WARNING
-warning
 
 # Check cli depandancies
 check_dependancies
