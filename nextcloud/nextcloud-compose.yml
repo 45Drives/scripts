@@ -30,7 +30,7 @@ services:
       - backend
 
   nextcloud-db:
-    image: mariadb
+    image: mariadb:10.5
     restart: always
     command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
     volumes:
