@@ -185,7 +185,7 @@ houston_configuration() {
 setup_done() {
 	
     echo "Installation Complete"
-    echo "Access Houston UI at https://{ServerIP}:9090 in a browser"
+    echo "Access Houston UI at https://$(hostname -I | awk '{print $1}'):9090 in a browser"
 
 	return 0
 }
