@@ -1,0 +1,13 @@
+#
+# /usr/lib/udev/rules.d/68-vdev.rules
+#
+
+ENV{DEVTYPE}=="disk", IMPORT{program}="/usr/lib/udev/vdev_id_45drives -d %k -c /etc/vdev_id.conf"
+
+KERNEL=="*[!0-9]", ENV{SUBSYSTEM}=="block", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_PATH}"
+KERNEL=="*[!0-9]", ENV{SUBSYSTEM}=="block", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_ALT_PATH}"
+KERNEL=="*[0-9]", ENV{SUBSYSTEM}=="block", ENV{DEVTYPE}=="partition", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_PATH}-part%n"
+KERNEL=="*[0-9]", ENV{SUBSYSTEM}=="block", ENV{DEVTYPE}=="partition", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_ALT_PATH}-part%n"
+KERNEL=="dm-[0-9]*", ENV{SUBSYSTEM}=="block", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_PATH}"
+KERNEL=="dm-[0-9]*", ENV{SUBSYSTEM}=="block", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_ALT_PATH}"
+
