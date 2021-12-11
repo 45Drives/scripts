@@ -208,7 +208,7 @@ init_network() {
 		echo "Enabling firewalld failed!"
 		exit $res
 	fi
-	
+
 	ufw disable
 	
     res=$?
@@ -217,7 +217,10 @@ init_network() {
 		echo "Disabling ufw failed!"
 		exit $res
 	fi
-	
+
+	firewall-cmd --permanent --add-service=http
+	firewall-cmd --reload
+
 	echo "Successfully set up network manager."
 	
 	return 0
