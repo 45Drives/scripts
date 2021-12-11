@@ -415,12 +415,12 @@ setup_done() {
 
 progress=""
 
-if [[ -f .ubuntu-preconfig.progress ]]; then
-	progress=$(cat .ubuntu-preconfig.progress)
+if [[ -f ~/.ubuntu-preconfig.progress ]]; then
+	progress=$(cat ~/.ubuntu-preconfig.progress)
 fi
 
 if [[ $progress != "" ]]; then
-	echo "Found progress from previous time running this script. ($PWD/.ubuntu-preconfig.progress)"
+	echo "Found progress from previous time running this script. (~/.ubuntu-preconfig.progress)"
 	echo "1. Continue from last successful step."
 	echo "2. Start from beginning."
 	echo "3. Exit. (default)"
@@ -447,42 +447,42 @@ case $progress in
 	0)
 		echo "################################################################################"
 		enable_root_user
-		echo 1 > .ubuntu-preconfig.progress
+		echo 1 > ~/.ubuntu-preconfig.progress
 		;&
 	1)
 		echo "################################################################################"
 		enable_root_ssh
-		echo 2 > .ubuntu-preconfig.progress
+		echo 2 > ~/.ubuntu-preconfig.progress
 		;&
 	2)
 		echo "################################################################################"
 		update_system
-		echo 3 > .ubuntu-preconfig.progress
+		echo 3 > ~/.ubuntu-preconfig.progress
 		;&
 	3)
 		echo "################################################################################"
 		init_network
-		echo 4 > .ubuntu-preconfig.progress
+		echo 4 > ~/.ubuntu-preconfig.progress
 		;&
 	4)
 		echo "################################################################################"
 		remove_garbage
-		echo 5 > .ubuntu-preconfig.progress
+		echo 5 > ~/.ubuntu-preconfig.progress
 		;&
 	5)
 		echo "################################################################################"
 		add_cockpit
-		echo 6 > .ubuntu-preconfig.progress
+		echo 6 > ~/.ubuntu-preconfig.progress
 		;&
 	6)
 		echo "################################################################################"
 		use_nm_not_systemd-networkd
-		echo 7 > .ubuntu-preconfig.progress
+		echo 7 > ~/.ubuntu-preconfig.progress
 		;&
 	7)
 		echo "################################################################################"
 		setup_done
-		echo 8 > .ubuntu-preconfig.progress
+		echo 8 > ~/.ubuntu-preconfig.progress
 		;;
 	8)
 		echo "Setup successfully finished the previous time running this script."

@@ -132,12 +132,12 @@ setup_done() {
 
 progress=""
 
-if [[ -f .rocky-preconfig.progress ]]; then
-	progress=$(cat .rocky-preconfig.progress)
+if [[ -f ~/.rocky-preconfig.progress ]]; then
+	progress=$(cat ~/.rocky-preconfig.progress)
 fi
 
 if [[ $progress != "" ]]; then
-	echo "Found progress from previous time running this script. ($PWD/.rocky-preconfig.progress)"
+	echo "Found progress from previous time running this script. (~/~/.rocky-preconfig.progress)"
 	echo "1. Continue from last successful step."
 	echo "2. Start from beginning."
 	echo "3. Exit. (default)"
@@ -164,22 +164,22 @@ case $progress in
 	0)
 		echo "################################################################################"
 		install_zfs
-		echo 1 > .rocky-preconfig.progress
+		echo 1 > ~/.rocky-preconfig.progress
 		;&
     1)
 		echo "################################################################################"
 		selinux_permissive
-		echo 2 > .rocky-preconfig.progress
+		echo 2 > ~/.rocky-preconfig.progress
 		;&
     2)
 		echo "################################################################################"
 		houston_configuration
-		echo 3 > .rocky-preconfig.progress
+		echo 3 > ~/.rocky-preconfig.progress
 		;&
     3)
 		echo "################################################################################"
 		setup_done
-		echo 4 > .rocky-preconfig.progress
+		echo 4 > ~/.rocky-preconfig.progress
 		;&
     4)
 		echo "Setup successfully finished the previous time running this script."
