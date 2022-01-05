@@ -9,7 +9,8 @@ cat << EOF
         [-l] Update nfsv3 for selected export. Comma separated list of EXPORT_ID. <1,2,3>. Not required if "-a" flag is used
         [-a] Update nfsv3 for all exports
         [-e] Enable nfsv3 for selected export(s)
-        [-d] Disable nfsv3 for selected export(s) 
+        [-d] Disable nfsv3 for selected export(s)
+        [-s] Display list of current shares
         [-h] Displays this message
 EOF
     exit 0
