@@ -40,6 +40,7 @@ services:
       - MYSQL_PASSWORD=thisisjustatest
       - MYSQL_DATABASE=nextcloud
       - MYSQL_USER=nextcloud
+      - OVERWRITEPROTOCOL=https
     networks:
       - backend
 
