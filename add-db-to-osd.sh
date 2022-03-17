@@ -1,7 +1,7 @@
 #!/bin/bash
 # Brett Kelly Oct 2021
 # 45Drives
-# Version 1.0 stable
+# Version 1.1 stable
 
 
 usage() { # Help
@@ -47,6 +47,7 @@ check_dependancies(){
     done
 }
 
+# if encountering any error quit, so to not make a mess
 set -e
 
 SCRIPT_DEPENDANCIES=(bc jq)
@@ -151,6 +152,17 @@ for i in "${!OSD_LIST[@]}"; do
         exit 1
     fi
 done
+
+# Make sure ceph admin keyring is present hs correct permission
+# Remove "set -e" so we can check ceph status error code
+# Then turn it back on after
+set +e
+ceph status > /dev/null 2>&1 ; rc=$?
+if [[ "$rc" -ne 0 ]];then
+    echo "Warning: permisson denied accesing cluster, admin keyring must be present"
+    exit 1
+fi
+set -e
 
 # If we got this far then all checked are passed
 # Start migration process
