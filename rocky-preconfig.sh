@@ -151,7 +151,7 @@ selinux_permissive() {
 }
 
 houston_configuration() {
-    local $res
+    local res
 
     echo "Installing Cockpit and Modules"
     dnf -y install dnf-plugins-core
@@ -180,6 +180,22 @@ houston_configuration() {
         exit $res
     fi
     return 0
+}
+
+update_system() {
+    local res
+
+    echo "Updating system"
+    dnf update -y
+    res=$?
+
+    if [[ $res != 0 ]]; then 
+        echo "Failed to update system"
+        exit $res
+    fi
+    
+    echo "Successfully Updated System"
+    return 0 
 }
 
 setup_done() {
@@ -249,10 +265,15 @@ case $progress in
 		;&
     5)
 		echo "################################################################################"
-		setup_done
+		update_system
 		echo 6 > .rocky-preconfig.progress
 		;&
     6)
+		echo "################################################################################"
+		setup_done
+		echo 7 > .rocky-preconfig.progress
+		;&
+    7)
 		echo "Setup successfully finished the previous time running this script."
 		;;
 	

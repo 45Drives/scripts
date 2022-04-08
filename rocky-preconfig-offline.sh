@@ -53,6 +53,7 @@ EOF
 }
 
 install_zfs() {
+    local res
     echo "Installing ZFS & kernel-devel"
     dnf install -y kernel-devel zfs
 
@@ -91,7 +92,7 @@ selinux_permissive() {
 }
 
 houston_configuration() {
-    local $res
+    local res
 
     echo "Installing Cockpit and Modules"
     dnf -y install dnf-plugins-core
@@ -120,6 +121,22 @@ houston_configuration() {
         exit $res
     fi
     return 0
+}
+
+update_system() {
+    local res
+
+    echo "Updating system"
+    dnf update -y
+    res=$?
+
+    if [[ $res != 0 ]]; then 
+        echo "Failed to update system"
+        exit $res
+    fi
+    
+    echo "Successfully Updated System"
+    return 0 
 }
 
 setup_done() {
@@ -178,8 +195,13 @@ case $progress in
 		;&
     3)
 		echo "################################################################################"
-		setup_done
+		update_system
 		echo 4 > ~/.rocky-preconfig.progress
+		;&
+    4)
+		echo "################################################################################"
+		setup_done
+		echo 5 > ~/.rocky-preconfig.progress
 		;&
     4)
 		echo "Setup successfully finished the previous time running this script."
