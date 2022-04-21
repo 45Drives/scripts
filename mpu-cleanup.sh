@@ -1,4 +1,6 @@
 #!/bin/bash
+# 45Drives- Brett Kelly
+# Stable 1.0
 
 # To get an idea of how long this will take
 # Run time rados -p $INDEX_POOL listomapkeys $obj
@@ -9,7 +11,8 @@ cat << EOF
     Usage:	
         [-b] S3 Bucket name. Required
         [-e] RGW S3 Endpoint. Required. IP or FQDN is supported. i.e http://192.168.123.121:8080
-        [-d] Dry-run. Does not remove any objects
+        [-c] This flag will tell the script to remove the underlying MPU objects. 
+             By default script will run in "dry-run" mode and not delete any underlying objects, only printing to stdout what would be done.
         [-h] Displays this message
 EOF
     exit 1
@@ -50,12 +53,12 @@ check_s3_access(){
     fi
 }
 
-ECHO_IF_DRYRUN=
+ECHO_IF_DRYRUN="echo"
 SCRIPT_DEPENDANCIES=(aws jq radosgw-admin)
 DATE=$(date +"%Y-%m-%d")
 UUID=$(uuidgen | cut -d - -f 1)
 
-while getopts 'b:e:d:i:Dh' OPTION; do
+while getopts 'b:e:d:i:ch' OPTION; do
     case ${OPTION} in
     b)
         BUCKET_NAME="${OPTARG}"
@@ -63,9 +66,8 @@ while getopts 'b:e:d:i:Dh' OPTION; do
     e)
         ENDPOINT="${OPTARG}"
         ;;
-    D)
-        ECHO_IF_DRYRUN="echo"
-        echo "DRY RUN MODE"
+    c)
+        ECHO_IF_DRYRUN=
         ;;
     h)
         usage
@@ -82,6 +84,13 @@ fi
 check_dependancies
 check_endpoint
 check_s3_access
+
+if [ "$ECHO_IF_DRYRUN" == "echo" ];then
+    echo "*******************************"
+    echo "RUNNING IN DRY RUN MODE..."
+    echo "To commit process use '-c' flag"
+    echo "*******************************"
+fi
 
 echo "Getting bucket stats for $BUCKET_NAME..."
 BUCKET_STATS_JSON=$(radosgw-admin bucket stats --bucket $BUCKET_NAME)
@@ -160,6 +169,16 @@ while [ $i -lt $MPU_COUNT ]; do
     fi
     let i=i+1
 done
-echo "Finished removing failed MPU objects"
-echo "Space is now freed in the cluster, but a bucket reshard is required to update bucket metadata"
-echo "radosgw-admin bucket reshard --bucket=$BUCKET_NAME --num-shards=<Next Prime Number>"
+
+if [ "$ECHO_IF_DRYRUN" == "echo" ];then
+    echo "*******************************"
+    echo "Dry Run complete"
+    echo "To commit process use '-c' flag"
+    echo "*******************************"
+else
+    echo "*******************************"    
+    echo "Finished removing failed MPU objects"
+    echo "Space is now freed in the cluster, but a bucket reshard is required to update bucket metadata"
+    echo "radosgw-admin bucket reshard --bucket=$BUCKET_NAME --num-shards=<Next Prime Number>"
+    echo "*******************************"
+fi
