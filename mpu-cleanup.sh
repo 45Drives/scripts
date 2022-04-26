@@ -2,9 +2,8 @@
 # 45Drives- Brett Kelly
 # Stable 1.0
 
-# To get an idea of how long this will take
-# Run time rados -p $INDEX_POOL listomapkeys $obj
-# ETC = (Time to List index objects) + (Time to list data pool) + (# Number of Bucket Shards) * (# of failed MPU) * (time it takes to list an omap key) 
+# To get an estimate of how long this will take
+# ETC = (Time to List index objects) + (Time to list non-ec pool objects) + (# Number of Bucket Shards) * (# of failed MPU) * (time it takes to list an omap key)
 
 usage() { # Help
 cat << EOF
