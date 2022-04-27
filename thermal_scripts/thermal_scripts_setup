@@ -26,6 +26,10 @@ chmod +x tplot
 curl -sSLO https://scripts.45drives.com/thermal_scripts/tbench.sh
 chmod +x tbench.sh
 
+mkdir output
+mkdir graphs
+mkdir chart_csv
+
 echo "Installing dependencies"
 function get_base_distro() {
     local distro=$(cat /etc/os-release | grep '^ID_LIKE=' | head -1 | sed 's/ID_LIKE=//' | sed 's/"//g' | awk '{print $1}')
