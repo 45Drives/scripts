@@ -1,0 +1,64 @@
+#! /bin/bash
+
+euid=$(id -u)
+if [ $euid -ne 0 ]; then
+	echo -e '\nYou must be root to run this utility.\n'
+	exit 1
+fi
+
+if [ -d "thermal_scripts" ]; then
+  # Take action if $DIR exists. #
+  echo "removing existing thermal_scripts folder"
+  rm -rf thermal_scripts
+fi
+
+echo "downloading thermal_scripts"
+mkdir thermal_scripts
+cd thermal_scripts
+curl -sSLO https://scripts.45drives.com/thermal_scripts/csv_converter
+chmod +x csv_converter
+curl -sSLO https://scripts.45drives.com/thermal_scripts/make_graph
+chmod +x make_graph
+curl -sSLO https://scripts.45drives.com/thermal_scripts/tmap
+chmod +x tmap
+curl -sSLO https://scripts.45drives.com/thermal_scripts/tplot
+chmod +x tplot
+curl -sSLO https://scripts.45drives.com/thermal_scripts/tbench.sh
+chmod +x tbench.sh
+
+echo "Installing dependencies"
+function get_base_distro() {
+    local distro=$(cat /etc/os-release | grep '^ID_LIKE=' | head -1 | sed 's/ID_LIKE=//' | sed 's/"//g' | awk '{print $1}')
+
+    if [ -z "$distro" ]; then
+	    distro=$(cat /etc/os-release | grep '^ID=' | head -1 | sed 's/ID=//' | sed 's/"//g' | awk '{print $1}')
+	fi
+
+    echo $distro
+}
+
+distro=$(get_base_distro)
+
+if [ "$distro" == "rhel" ] || [ "$distro" == "fedora" ]; then
+    dnf install -y python3
+    res=$?
+    if [[ $res != 0 ]]; then
+        echo "error installing python3"
+        exit $res
+    fi
+fi
+
+if [ "$distro" == "debian" ]; then
+    apt install -y python3
+    res=$?
+    if [[ $res != 0 ]]; then
+		echo "error installing python3"
+		exit $res
+	fi
+fi
+
+echo "Install complete"
+echo "INSTRUCTIONS:"
+echo "     Modify the tbench.sh file and set the TEST_NAME and GRAPH_TITLE variables (${PWD}/tbench.sh)"
+echo "     navigate to the thermal_scripts folder: cd ${PWD}"
+echo "     and run tbench.sh:               ./tbench.sh"
