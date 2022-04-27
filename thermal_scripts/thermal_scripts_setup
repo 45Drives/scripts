@@ -44,7 +44,7 @@ function get_base_distro() {
 distro=$(get_base_distro)
 
 if [ "$distro" == "rhel" ] || [ "$distro" == "fedora" ]; then
-    dnf install -y python3
+    dnf install -y python3 python3-matplotlib
     res=$?
     if [[ $res != 0 ]]; then
         echo "error installing python3"
@@ -53,7 +53,7 @@ if [ "$distro" == "rhel" ] || [ "$distro" == "fedora" ]; then
 fi
 
 if [ "$distro" == "debian" ]; then
-    apt install -y python3
+    apt install -y python3 python3-matplotlib
     res=$?
     if [[ $res != 0 ]]; then
 		echo "error installing python3"
