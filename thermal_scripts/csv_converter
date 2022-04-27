@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+import os
+import csv
+from optparse import OptionParser
+
+def get_averages_dict(input_list):
+    output_dict = {
+        "time (s)":[],
+        "HBA (avg)":[],
+        "CPU":[],
+        "RAM (avg)":[]
+    }
+
+    ram = []
+    cpu = []
+    hba = []
+    hdd_dict = {}
+    
+
+    for item in input_list:
+        if item[0].find("DIMM") != -1:
+            ram.append(item[1:].copy())
+        elif item[0].find("HBA") != -1:
+            hba.append(item[1:].copy())
+        elif item[0].find("CPU") != -1:
+            cpu.append(item[1:].copy())
+        elif item[0].find("time") != -1:
+            output_dict["time (s)"] = item[1:].copy()
+        elif item[0].find("-") != -1:
+            drive_row_key = "HDD Row {r} (avg)".format(r=item[0][0])
+            if drive_row_key not in hdd_dict.keys():
+                hdd_dict[drive_row_key] = []
+                output_dict[drive_row_key] = []
+            hdd_dict[drive_row_key].append(item[1:].copy())
+
+    for j in range(0,len(ram[0])):
+        avg = 0
+        for i in range(0,len(ram)):      
+            avg += int(ram[i][j])
+        output_dict["RAM (avg)"].append(str(int(avg/len(ram))))
+        avg = 0
+    
+    for j in range(0,len(cpu[0])):
+        avg = 0
+        for i in range(0,len(cpu)):      
+            avg += int(cpu[i][j])
+        output_dict["CPU"].append(str(int(avg/len(cpu))))
+        avg = 0
+
+    for j in range(0,len(hba[0])):
+        avg = 0
+        for i in range(0,len(hba)):      
+            avg += int(hba[i][j])
+        output_dict["HBA (avg)"].append(str(int(avg/len(hba))))
+        avg = 0
+
+    for hdd_row_key in hdd_dict.keys():
+        for j in range(0,len(hdd_dict[hdd_row_key][0])):
+            avg = 0
+            for i in range(0,len(hdd_dict[hdd_row_key])):      
+                avg += int(hdd_dict[hdd_row_key][i][j])
+            output_dict[hdd_row_key].append(str(int(avg/len(hdd_dict[hdd_row_key]))))
+            avg = 0
+    return output_dict
+
+def generate_output_csv(od,args):
+    output_path = os.path.abspath((os.path.expanduser(args.output_file)))
+    with open(output_path, 'w', newline='') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter=',')
+        for key in od.keys():
+            csvwriter.writerow([key] + od[key])
+
+def input_csv_to_list(args):
+    csv_list = []
+    if not os.path.isfile(os.path.expanduser(args.input_file)):
+        print("invalid input file provided: ", args.input_file)
+        exit(1)
+    with open(os.path.abspath((os.path.expanduser(args.input_file))), newline='') as f:
+        reader = csv.reader(f)
+        csv_list = list(reader)
+    return csv_list
+
+def main():
+    parser = OptionParser()  # use optparse to handle command line arguments
+    parser.add_option("-i", "--input", action="store", type="string",
+                      dest="input_file", default=None, help="input file [default: %default]")
+    parser.add_option("-o", "--output", action="store", type="string",
+                      dest="output_file", default="out.csv", help="output file [default: %default]")
+    (args, cli_args) = parser.parse_args()
+
+    if args.input_file == None:
+        print("no input file provided.")
+        exit(1)
+
+    input_list = input_csv_to_list(args)
+    output_dict = get_averages_dict(input_list)
+    generate_output_csv(output_dict,args)
+
+
+if __name__ == "__main__":
+    main()

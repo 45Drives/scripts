@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+
+# import server_identifier script as python module from 45Drives-tools package
+from importlib.util import spec_from_loader, module_from_spec
+from importlib.machinery import SourceFileLoader
+spec = spec_from_loader("server_identifier", SourceFileLoader(
+    "server_identifier", "/opt/45drives/tools/server_identifier"))
+server_identifier = module_from_spec(spec)
+spec.loader.exec_module(server_identifier)
+
+# other imports
+import shlex
+import subprocess
+import json
+import re
+
+
+def get_hba_temps(hba_arr):
+    for hba in hba_arr:
+        storcli = subprocess.Popen(
+            shlex.split("/opt/45drives/tools/storcli64 /c{ctl} show all J".format(ctl=hba["Ctl"])), stdout=subprocess.PIPE, universal_newlines=True)
+        jq = subprocess.Popen(
+            shlex.split("jq '.Controllers[0].\"Response Data\".\"HwCfg\".\"ROC temperature(Degree Celcius)\"'"), stdin=storcli.stdout, stdout=subprocess.PIPE, universal_newlines=True)
+        for temp in jq.stdout:
+            hba["temp_C"] = int(temp)
+            hba["temp_F"] = int((int(temp) * (9/5)) + 32)
+
+
+def get_disk_temps():
+    disk_temps = []
+    lsdev = subprocess.Popen(
+        shlex.split("lsdev -j"), stdout=subprocess.PIPE, universal_newlines=True)
+    lsdev_output = lsdev.communicate()
+    lsdev_json = json.loads(lsdev_output[0])
+    for row in lsdev_json["rows"]:
+        for slot in row:
+            if slot["occupied"]:
+                disk = {}
+                disk["id"] = slot["bay-id"]
+                disk["occupied"] = slot["occupied"]
+                disk["model-family"] = slot["model-family"]
+                disk["model-name"] = slot["model-name"]
+                disk["temp_C"] = (int(slot["temp-c"][:-1])
+                                  ) if (len(slot["temp-c"]) and slot["temp-c"] != "?") else 0
+                disk["temp_F"] = (
+                    int(int(slot["temp-c"][:-1]) * (9/5)) + 32) if (len(slot["temp-c"]) and slot["temp-c"] != "?") else 0
+                disk_temps.append(disk.copy())
+    return disk_temps
+
+
+def get_cpu_and_ram_temps():
+    cpu_temps = []
+    ram_temps = []
+    sensor_readings = ipmitool_sensor()
+    for entry in sensor_readings.keys():
+        if "CPU" in entry:
+            cpu_temps.append(
+                {
+                    "name": entry,
+                    "temp_C": sensor_readings[entry],
+                    "temp_F": int((int(sensor_readings[entry]) * (9/5)) + 32)
+                }
+            )
+        elif "DIMM" in entry:
+            ram_temps.append(
+                {
+                    "name": entry,
+                    "temp_C": sensor_readings[entry],
+                    "temp_F": int((int(sensor_readings[entry]) * (9/5)) + 32)
+                }
+            )
+
+    return cpu_temps, ram_temps
+
+
+def ipmitool_sensor():
+    try:
+        ipmitool_sensor_result = subprocess.Popen(
+            ["ipmitool", "sensor"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True).stdout
+    except:
+        return {}
+
+    sensor_readings = []
+    for line in ipmitool_sensor_result:
+        regex = re.search(
+            "(.*\s+{t})\s+\|\s+(\S+)\s+\|\s+{d}.*".format(t="Temp",d="degrees C"), line)
+        if regex != None:
+            sensor_readings.append(
+                (
+                    regex.group(1)[:-5], 
+                    int(float(str(regex.group(2))) if regex.group(2) != "na" else 0)
+                )
+            )
+    
+    return dict(sensor_readings)
+
+
+def main():
+    server = {}
+    server["HBA"], hybrid = server_identifier.hba()
+    get_hba_temps(server["HBA"])
+    server["DISKS"] = get_disk_temps()
+    server["CPU"], server["RAM"] = get_cpu_and_ram_temps()
+    print(json.dumps(server, indent=4))
+
+
+if __name__ == "__main__":
+    main()

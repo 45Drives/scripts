@@ -1,0 +1,419 @@
+#!/usr/bin/env python3
+import time
+import subprocess
+import json
+import shlex
+import curses
+import os
+import re
+from optparse import OptionParser
+
+ANSI_colors={
+	"LGREEN":'\033[1;32m',
+	"GREEN":'\033[0;32m',
+	"YELLOW":'\033[0;33m',
+	"MAGENTA":'\033[0;35m',
+	"CYAN":'\033[0;36m',
+	"WHITE":'\033[0;37m',
+	"RED":'\033[0;31m',
+	"GREY":'\033[1;30m',
+	"END":'\033[0m'
+}
+
+FIO_PARAMS={
+    "global": {
+        "ioengine":"libaio",
+        "iodepth":"32",
+        "direct":"1",
+        "runtime":"30",
+        "size":"60G",
+        "filename":"",
+        "numjobs":"",
+        "group_reporting":"1",
+        "experimental_verify":"1"
+    },
+    "4k-rand-read":{
+        "time_based":"",
+        "bs":"4k",
+        "rw":"randread"
+    }
+}
+
+
+def run_tmap(start_time):
+    # run tmap and append the time that the measurement started as well as the duration of the measurement
+    tmap_start_time = time.time()
+    tmap = subprocess.Popen(
+        shlex.split("./tmap"), stdout=subprocess.PIPE, universal_newlines=True)
+    tmap_output = tmap.communicate()
+    tmap_json = json.loads(tmap_output[0])
+    tmap_end_time = time.time()
+    tmap_json["time"] = int(tmap_start_time - start_time)
+    tmap_json["duration"] = int(tmap_end_time - tmap_start_time)
+    return tmap_json
+
+
+def reset_t_data_counts(t_data_current):
+    for hba in t_data_current["HBA"]:
+        hba["temp_inc_count"] = 0
+        hba["temp_eq_count"] = 0
+        hba["temp_dec_count"] = 0
+
+    for disk in t_data_current["DISKS"]:
+        disk["temp_inc_count"] = 0
+        disk["temp_eq_count"] = 0
+        disk["temp_dec_count"] = 0
+
+    for cpu in t_data_current["CPU"]:
+        cpu["temp_inc_count"] = 0
+        cpu["temp_eq_count"] = 0
+        cpu["temp_dec_count"] = 0
+
+    for ram in t_data_current["RAM"]:
+        ram["temp_inc_count"] = 0
+        ram["temp_eq_count"] = 0
+        ram["temp_dec_count"] = 0
+
+def update_row_col(row,col,row_start,col_start,col_shift,win):
+    if row >= win.getmaxyx()[0]:
+        row = row_start
+        col += col_shift
+    else:
+        col = col_start
+    return row, col
+
+def generate_summary(t_data,args,win):
+    pad = 8
+    dots = ""
+    s_data = t_data
+    if (len(t_data) > args.ss_count):
+        dots = "... ,"
+        s_data = t_data[-args.ss_count:]
+
+    row_start = 3
+    row = row_start
+    col_gap = 5
+    col_start = 0
+    col = col_start
+
+
+    for i in range(0, len(s_data[0]["HBA"])):
+        row, col = update_row_col(row,col,row_start,col_start,col_gap,win)
+        if col != col_start:
+            col_start = col
+        name_string = "{n:{f}{a}{w}}{d}".format(n="HBA_"+str(s_data[0]["HBA"][i]["Ctl"]),f=" ",a="<",w=pad,d=dots)
+        win.addstr(row,col,name_string)
+        col += len(name_string)
+        for j in range(0, len(s_data)):
+            color_number = 0 if s_data[j]["HBA"][i]["temp_C"] != s_data[-1]["HBA"][i]["temp_C"] else 1
+            win.addstr(row,col,str(s_data[j]["HBA"][i]["temp_C"]),curses.color_pair(color_number))
+            col += len(str(s_data[j]["HBA"][i]["temp_C"]))
+            if j != len(s_data)-1: win.addstr(row,col,",",curses.color_pair(0))
+            col += 1
+        row += 1
+
+
+    
+    for i in range(0, len(s_data[0]["CPU"])):
+        row, col = update_row_col(row,col,row_start,col_start,col_gap,win)
+        if col != col_start:
+            col_start = col
+        name_string = "{n:{f}{a}{w}}{d}".format(n=str(s_data[0]["CPU"][i]["name"]),f=" ",a="<",w=pad,d=dots)
+        win.addstr(row,col,name_string)
+        col += len(name_string)
+        for j in range(0, len(s_data)):
+            color_number = 0 if s_data[j]["CPU"][i]["temp_C"] != s_data[-1]["CPU"][i]["temp_C"] else 1
+            win.addstr(row,col,str(s_data[j]["CPU"][i]["temp_C"]),curses.color_pair(color_number))
+            col += len(str(s_data[j]["CPU"][i]["temp_C"]))
+            if j != len(s_data)-1: win.addstr(row,col,",",curses.color_pair(0))
+            col += 1
+        row += 1
+    
+    for i in range(0, len(s_data[0]["DISKS"])):
+        row, col = update_row_col(row,col,row_start,col_start,col_gap,win)
+        if col != col_start:
+            col_start = col
+        name_string = "{n:{f}{a}{w}}{d}".format(n=str(s_data[0]["DISKS"][i]["id"]),f=" ",a="<",w=pad,d=dots)
+        win.addstr(row,col,name_string)
+        col += len(name_string)
+        for j in range(0, len(s_data)):
+            color_number = 0 if s_data[j]["DISKS"][i]["temp_C"] != s_data[-1]["DISKS"][i]["temp_C"] else 1
+            win.addstr(row,col,str(s_data[j]["DISKS"][i]["temp_C"]),curses.color_pair(color_number))
+            col += len(str(s_data[j]["DISKS"][i]["temp_C"]))
+            if j != len(s_data)-1: win.addstr(row,col,",",curses.color_pair(0))
+            col += 1
+        row += 1
+
+
+    for i in range(0, len(s_data[0]["RAM"])):
+        row, col = update_row_col(row,col,row_start,col_start,col_gap,win)
+        if col != col_start:
+            col_start = col
+        name_string = "{n:{f}{a}{w}}{d}".format(n=str(s_data[0]["RAM"][i]["name"]),f=" ",a="<",w=pad,d=dots)
+        win.addstr(row,col,name_string)
+        col += len(name_string)
+        for j in range(0, len(s_data)):
+            color_number = 0 if s_data[j]["RAM"][i]["temp_C"] != s_data[-1]["RAM"][i]["temp_C"] else 1
+            win.addstr(row,col,str(s_data[j]["RAM"][i]["temp_C"]),curses.color_pair(color_number))
+            col += len(str(s_data[j]["RAM"][i]["temp_C"]))
+            if j != len(s_data)-1: win.addstr(row,col,",",curses.color_pair(0))
+            col += 1
+        row += 1
+
+
+
+def ss_check(t_data_current, ss_count,win):
+    hba_ss = 0
+    disk_ss = 0
+    cpu_ss = 0
+    ram_ss = 0
+
+    for hba in t_data_current["HBA"]:
+        hba_ss += hba["temp_eq_count"]
+
+    for disk in t_data_current["DISKS"]:
+        disk_ss += disk["temp_eq_count"]
+
+    for cpu in t_data_current["CPU"]:
+        cpu_ss += cpu["temp_eq_count"]
+
+    for ram in t_data_current["RAM"]:
+        ram_ss += ram["temp_eq_count"]
+
+    hba_target = len(t_data_current["HBA"]) * ss_count
+    disk_target = len(t_data_current["DISKS"]) * ss_count
+    cpu_target =  len(t_data_current["CPU"]) * ss_count
+    ram_target = len(t_data_current["RAM"]) * ss_count
+
+    hba_ss_bool = bool(hba_ss >= hba_target)
+    disk_ss_bool = bool(disk_ss >= disk_target)
+    cpu_ss_bool = bool(cpu_ss >= cpu_target)
+    ram_ss_bool = bool(ram_ss >= ram_target)
+
+    ss_string = "Steady State:"
+    hba_string = " [HBA ({v}/{t})] ".format(v=hba_ss,t=hba_target)
+    disk_string = " [DISKS ({v}/{t})] ".format(v=disk_ss,t=disk_target)
+    cpu_string = " [CPU ({v}/{t})] ".format(v=cpu_ss,t=cpu_target)
+    ram_string = " [RAM ({v}/{t})] ".format(v=ram_ss,t=ram_target)
+
+    hba_color = 1 if hba_ss_bool else 0
+    disk_color = 1 if disk_ss_bool else 0
+    cpu_color = 1 if cpu_ss_bool else 0
+    ram_color = 1 if ram_ss_bool else 0
+
+    col = 40
+    win.addstr(0,col,ss_string,curses.color_pair(0))
+    col += len(ss_string)
+    win.addstr(0,col,hba_string,curses.color_pair(hba_color))
+    col += len(hba_string)
+    win.addstr(0,col,disk_string,curses.color_pair(disk_color))
+    col += len(disk_string)
+    win.addstr(0,col,cpu_string,curses.color_pair(cpu_color))
+    col += len(cpu_string)
+    win.addstr(0,col,ram_string,curses.color_pair(ram_color))
+    win.refresh()
+    if( hba_ss_bool and disk_ss_bool and cpu_ss_bool and ram_ss_bool ):
+        time.sleep(3)
+    else:
+        time.sleep(0.1)
+
+    return ( hba_ss_bool and disk_ss_bool and cpu_ss_bool and ram_ss_bool )
+
+
+def show_progress(t_data, args, win, elapsed_time):
+    win.clear()
+    generate_summary(t_data,args,win)
+    win.addstr(0,0, "Elapsed Time:  ~{t}s".format(t=elapsed_time))
+    win.addstr(1,0, "Readings Taken: {r}".format(r=len(t_data)))
+    line_count = 2
+    win.refresh()
+    time.sleep(.1)
+
+def show_welcome(args,win):
+    win.clear()
+    win.addstr(
+        0, 0, "tplot: gathering temperature data using the following parameters:")
+    win.addstr(1, 0, "\tpolling_interval: {p} (Seconds)".format(
+        p=args.polling_interval))
+    win.addstr(2, 0, "\tss_count: {s}".format(s=args.ss_count))
+    win.addstr(3, 0, "\tmax_duration: {m} (Seconds)".format(
+        m=args.max_duration))
+    win.addstr(4, 0, "\toutput_file: {s}".format(s=args.output_file))
+    win.addstr(6, 0, "Performing Initial Measurements, Please Wait..")
+    win.refresh()
+    time.sleep(.1)
+
+def generate_output_file(t_data,args):
+    csv_file = open(args.output_file,"w")
+
+    time_string = "time(s),"
+    for i in range(0,len(t_data)):
+        time_string += str(t_data[i]["time"]) + ","
+    time_string = time_string[:-1] + "\n"
+
+    hba_string = ""
+    for i in range(0, len(t_data[0]["HBA"])):
+        hba_string += "HBA_" + str(t_data[0]["HBA"][i]["Ctl"]) + ","
+        for j in range(0, len(t_data)):
+            hba_string += str(t_data[j]["HBA"][i]["temp_C"]) + ","
+        hba_string = hba_string[:-1] + "\n"
+
+    cpu_string = ""
+    for i in range(0, len(t_data[0]["CPU"])):
+        cpu_string += str(t_data[0]["CPU"][i]["name"]) + ","
+        for j in range(0, len(t_data)):
+            cpu_string += str(t_data[j]["CPU"][i]["temp_C"]) + ","
+        cpu_string = cpu_string[:-1] + "\n"
+
+    disk_string = ""
+    for i in range(0, len(t_data[0]["DISKS"])):
+        disk_string += str(t_data[0]["DISKS"][i]["id"]) + ","
+        for j in range(0, len(t_data)):
+            disk_string += str(t_data[j]["DISKS"][i]["temp_C"]) + ","
+        disk_string = disk_string[:-1] + "\n"
+
+    ram_string = ""
+    for i in range(0, len(t_data[0]["RAM"])):
+        ram_string += str(t_data[0]["RAM"][i]["name"]) + ","
+        for j in range(0, len(t_data)):
+            ram_string += str(t_data[j]["RAM"][i]["temp_C"]) + ","
+        ram_string = ram_string[:-1] + "\n"
+
+    csv_file.write(time_string)
+    csv_file.write(hba_string)
+    csv_file.write(cpu_string)
+    csv_file.write(disk_string)
+    csv_file.write(ram_string)
+    csv_file.close()
+
+def ending_message(args,win,ss_flag):
+    win.clear()
+    win.addstr(0, 0, "tplot: Test Complete")
+    if ss_flag:
+        win.addstr(2, 0, "Steady State Achieved after {s} identical consecutive temerature readings were encountered".format(s=args.ss_count))
+    else:
+        win.addstr(2,0, "Test reached max duration of {m} seconds.".format(m=args.max_duration))
+
+    win.addstr(4, 0, "generating output_file: {s}".format(s=args.output_file))
+    win.refresh()
+    time.sleep(5)
+
+def show_print(win,msg,row=0):
+    win.addstr(row,40,msg)
+    win.refresh()
+    time.sleep(1)
+
+def setup_fio_file(tmap_data):
+    if os.path.isfile(os.path.expanduser("tbench.fio")):
+        os.remove(os.path.expanduser("tbench.fio"))
+    fio_job_file = open("tbench.fio","w")
+
+    disk_string = ""
+    num_jobs = 0
+
+    for disk in tmap_data["DISKS"]:
+        disk_string += "/dev/{ID}:".format(ID=disk["id"])
+
+    disk_string = disk_string[:-1]
+
+    FIO_PARAMS["global"]["filename"] = disk_string
+    FIO_PARAMS["global"]["numjobs"] = str(len(tmap_data["DISKS"]))
+    
+    for param_group in FIO_PARAMS:
+        fio_job_file.write(f"[{param_group}]\n")
+        for param in FIO_PARAMS[param_group]:
+            if FIO_PARAMS[param_group][param] == "":
+                fio_job_file.write(f"{param}\n")
+            else:
+                fio_job_file.write(f"{param}={FIO_PARAMS[param_group][param]}\n")
+
+def run_fio(duration):
+    with open('tbench.fio', 'r') as file :
+        filedata = file.read()
+
+    # set the proper duration in the fio job file.
+    filedata = re.sub('^runtime=(.*)$', f'runtime={int(duration)}', filedata, flags = re.M)
+
+    # Write the changes to the fio job file.
+    with open('tbench.fio', 'w') as file:
+        file.write(filedata)
+    
+    # run fio
+    fio = subprocess.Popen(
+        shlex.split("fio ./tbench.fio"), stdout=subprocess.PIPE, universal_newlines=True)
+    fio_output = fio.communicate()
+
+def main(main_screen,args):
+    show_welcome(args, main_screen)
+    ss_flag = False
+
+    start_time = time.time()
+    elapsed_time_total = 0.0
+
+    curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+    # initialize t_data and get first reading
+    t_data = []
+    tmap_data = run_tmap(start_time)
+    setup_fio_file(tmap_data)
+    t_data.append(tmap_data.copy())
+    
+
+    # track the most recent reading as t_data_current
+    t_data_current = tmap_data.copy()
+    reset_t_data_counts(t_data_current)
+    elapsed_time_total = int(time.time() - start_time)
+    show_progress(t_data, args, main_screen, elapsed_time_total)
+
+    done = False
+    while not done:
+        if t_data_current["duration"] < args.polling_interval:
+            if (args.fio):
+                run_fio(args.polling_interval - t_data_current["duration"])
+            else:
+                time.sleep(args.polling_interval - t_data_current["duration"])
+        tmap_data = run_tmap(start_time)
+        t_data.append(tmap_data.copy())
+        t_data_current = tmap_data.copy()
+        elapsed_time_total = int(time.time() - start_time)
+        show_progress(t_data, args, main_screen, elapsed_time_total)
+
+        if len(t_data) >= args.ss_count:
+            reset_t_data_counts(t_data_current)
+            for capture in t_data[-args.ss_count:]:
+                for i in range(0, len(capture["HBA"])):
+                    if capture["HBA"][i]["temp_C"] == t_data_current["HBA"][i]["temp_C"]:
+                        t_data_current["HBA"][i]["temp_eq_count"] += 1
+                for i in range(0, len(capture["DISKS"])):
+                    if capture["DISKS"][i]["temp_C"] == t_data_current["DISKS"][i]["temp_C"]:
+                        t_data_current["DISKS"][i]["temp_eq_count"] += 1
+                for i in range(0, len(capture["CPU"])):
+                    if capture["CPU"][i]["temp_C"] == t_data_current["CPU"][i]["temp_C"]:
+                        t_data_current["CPU"][i]["temp_eq_count"] += 1
+                for i in range(0, len(capture["RAM"])):
+                    if capture["RAM"][i]["temp_C"] == t_data_current["RAM"][i]["temp_C"]:
+                        t_data_current["RAM"][i]["temp_eq_count"] += 1
+            done = ss_check(t_data_current, args.ss_count, main_screen)
+            ss_flag = done
+
+        if elapsed_time_total >= args.max_duration:
+            done = True
+
+
+    ending_message(args,main_screen,ss_flag)
+    generate_output_file(t_data,args)
+
+
+if __name__ == "__main__":
+    parser = OptionParser()  # use optparse to handle command line arguments
+    parser.add_option("-s", "--ss_count", action="store", type="int",
+                      dest="ss_count", default=4, help="stop the test after this consecutive number of readings. [default: %default]")
+    parser.add_option("-d", "--duration", action="store", type="int",
+                      dest="max_duration", default=1800, help="The maximum duration of the test in seconds. [default: %default]")
+    parser.add_option("-i", "--polling_interval", action="store", type="int", 
+                        dest="polling_interval", default=30, help="the time interval between temperature readings in seconds. [default: %default]")
+    parser.add_option("-o", "--output_file", action="store", type="string",
+                      dest="output_file", default="tplot.csv", help="the name of the output file. [default: %default]")
+    parser.add_option("-f", "--fio", action="store_true", dest="fio", help="use fio job to stress disks between temperature readings.")
+    (args, cli_args) = parser.parse_args()
+    curses.wrapper(main,args)
