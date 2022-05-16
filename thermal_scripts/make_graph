@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+import matplotlib.pyplot as plt
+import os
+import csv
+from optparse import OptionParser
+import numpy as np
+
+def input_csv_to_list(args):
+    csv_list = []
+    if not os.path.isfile(os.path.expanduser(args.input_file)):
+        print("invalid input file provided: ", args.input_file)
+        exit(1)
+    with open(os.path.abspath((os.path.expanduser(args.input_file))), newline='') as f:
+        reader = csv.reader(f,delimiter=",")
+        csv_list = list(reader)
+    return csv_list
+
+def annot_max(x,y, ax=None):
+    xmax = x[np.argmax(y)]
+    ymax = y.max()
+    text= "max={y}°C".format(y=ymax)
+    if not ax:
+        ax=plt.gca()
+    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+    arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
+    kw = dict(xycoords='data',textcoords="axes fraction",
+            bbox=bbox_props, ha="right", va="top")
+    ax.annotate(text, xy=(xmax, ymax), xytext=(0.94,0.96), **kw)
+
+def main():
+    parser = OptionParser()  # use optparse to handle command line arguments
+    parser.add_option("-i", "--input", action="store", type="string",
+                      dest="input_file", default=None, help="input file [default: %default]")
+    parser.add_option("-t", "--title", action="store", type="string",
+                      dest="title", default="Temperature vs Time", help="graph title [default: %default]")
+    parser.add_option("-o", "--output", action="store", type="string",
+                      dest="output", default="temp_vs_time.png", help="output file [default: %default]")
+    (args, cli_args) = parser.parse_args()
+
+    if args.input_file == None:
+        print("no input file provided.")
+        exit(1)
+
+    fig, ax = plt.subplots(figsize=(10,8),sharex=True)
+    input_list = input_csv_to_list(args)
+    values = []
+    for i in range(0,len(input_list)):
+        values.append([])
+        for j in range(1,len(input_list[i])):
+            values[i].append(int(input_list[i][j]))
+
+    time = values[0]
+    for i in range(1,len(input_list)):
+        ax.plot(time,values[i], label = input_list[i][0])
+    
+    annot_max(np.array(time),np.array(values[1]))
+
+    #ax.plot(time,input_list[1][1:], label = input_list[1][0])
+
+    # setting x and y axis range
+    #ax.set_ylim([0, 12])
+    #plt.xlim(0,int(time[-1]))
+    
+
+    # naming the x axis
+    plt.xlabel('Time (s)')
+    # naming the y axis
+    plt.ylabel('Temperature (°C)')
+    # giving a title to my graph
+    plt.title(args.title)
+    
+    # show a legend on the plot
+    plt.legend()
+    
+    plt.grid()
+
+    # function to show the plot
+    #plt.show()
+    fig.savefig(args.output)
+
+if __name__ == "__main__":
+    main()
