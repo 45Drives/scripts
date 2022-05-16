@@ -1,0 +1,13 @@
+#!/bin/sh
+if [ "$1" = "-h" ] ; then
+        echo "Show the underlying path for a device."
+        exit
+fi
+
+if [ ! -b "$VDEV_UPATH" ]; then
+        somepath="/dev/$(lsblk -ndo pkname ${VDEV_PATH})"
+else
+        somepath="${VDEV_UPATH}"
+fi
+
+echo upath="$somepath"
