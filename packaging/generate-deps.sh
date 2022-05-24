@@ -25,7 +25,7 @@ colour_errors() {
 	perl -pne "s/(err(?:or)?:)/$(print_red '\\1')/gi;s/(warn(?:ing)?:)/$(print_orange '\\1')/gi;s/(^|\\033\[0m)(.+?)(?=\\033|$)/\1$(print_yellow '\\2')/gi"
 }
 
-exec 2> >(colour_errors)
+exec 2> >(colour_errors >&2)
 
 run_and_prefix_stderr() {
 	$@ 2> >(perl -pne "s/^(?!\s*$)/$(print_red $1:) /" >&2)
