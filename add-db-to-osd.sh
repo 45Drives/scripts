@@ -165,7 +165,7 @@ set -e
 
 CEPH_MAJOR_VERSION=$(ceph version | awk '{print $3}' | cut -d . -f 1)
 if [ $CEPH_MAJOR_VERSION -gt "15" ];then
-    echo "Warning: current process is not supported on clusters versions 16 and up"
+    echo "Warning: current process is not supported on clusters version 16 and up"
     exit 1
 fi
 
