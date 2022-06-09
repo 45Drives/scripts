@@ -1,8 +1,7 @@
 #!/bin/bash
 # Brett Kelly Oct 2021
 # 45Drives
-# Version 1.1 stable
-
+# Version 1.2 stable
 
 usage() { # Help
 cat << EOF
@@ -163,6 +162,12 @@ if [[ "$rc" -ne 0 ]];then
     exit 1
 fi
 set -e
+
+CEPH_MAJOR_VERSION=$(ceph version | awk '{print $3}' | cut -d . -f 1)
+if [ $CEPH_MAJOR_VERSION -gt "15" ];then
+    echo "Warning: current process is not supported on clusters version 16 and up"
+    exit 1
+fi
 
 # If we got this far then all checked are passed
 # Start migration process
