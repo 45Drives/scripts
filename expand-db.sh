@@ -67,9 +67,8 @@ for device in ${DB_DEVICE[@]};do
         echo "Warning: $device is has no Logical Volumes present, skipping"
         continue
     fi
+            
     # If there are lvs and the lv name formats are not "osd-db-*" then skip 
-    
-    
 
     DB_DEVICE_PV_JSON=$(pvs --noheadings --reportformat json --devices $device -o pv_pe_count,pv_pe_alloc_count)
     TOTAL_PHYSICAL_EXTENTS=$(echo $DB_DEVICE_PV_JSON | jq -r '.report | .[].pv | .[].pv_pe_count')
@@ -134,10 +133,26 @@ for device in ${DB_DEVICE[@]};do
     #need to get VG name
     #need to get OSD.id
 
-    # extend lv /dev/vg_name/lv_name to either max allowed space or user specified
+    i=0
+    while [ $i -lt $DB_LV_COUNT ]; do
 
-    # i=0
-    # while [ $i -lt $DB_LV_COUNT ]; do
-    #     UPLOAD_ID=$(echo $MPU_JSON | jq -r .Uploads[$i].UploadId)
-    #     UPLOAD_KEY=$(echo $MPU_JSON | jq -r .Uploads[$i].Key)
+        LV_NAME=$(echo $DB_DEVICE_LV_JSON | jq -r --arg index $i '.[] | .[].lv | .[$index |tonumber].lv_name')
+        VG_NAME=$(echo $DB_DEVICE_LV_JSON | jq -r --arg index $i '.[] | .[].lv | .[$index |tonumber].vg_name')
+        OSD_JSON=$(ceph-volume lvm list --format json /dev/$VG_NAME/$LV_NAME)
+        OSD_ID=$( echo $OSD_JSON | jq  -r '.[] | .[].tags["ceph.osd_id"]')
+        OSD_TYPE=$( echo $OSD_JSON | jq  -r '.[] | .[].type')
+
+        if [ $OSD_TYPE == "block" ];then
+            echo "Warning: /dev/$VG_NAME/$LV_NAME is a bluestore block device, skipping"
+            continue 2
+        fi
+
+        echo "LV_NAME:  $LV_NAME"
+        echo "VG_NAME:  $VG_NAME"
+        echo "OSD_ID:   $OSD_ID"
+        echo "OSD_TYPE: $OSD_TYPE"
+
+        let i=i+1
+    done
+    # extend lv /dev/vg_name/lv_name to either max allowed space or user specified
 done
