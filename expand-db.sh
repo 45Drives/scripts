@@ -13,6 +13,17 @@ EOF
     exit 0
 }
 
+warning(){
+    read -p "This is currently pre-release, use at your own risk. To continue enter 'y' " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]];then
+        :
+    else
+        echo "Exiting..."
+        exit 1
+    fi
+}
+
 check_dependancies(){
     for i in "${!SCRIPT_DEPENDANCIES[@]}"; do
         if ! command -v ${SCRIPT_DEPENDANCIES[i]} >/dev/null 2>&1;then
@@ -23,11 +34,12 @@ check_dependancies(){
     done
 }
 
+ECHO_IF_DRYRUN=""
 SCRIPT_DEPENDANCIES=(bc jq)
 PHYSICAL_EXTENT_SIZE_BYTES=4194304 # REPLACE WITH CHECK JUST IN CASE THIS IS DIFFERENT  
 AUTO_MODE="true"
 
-while getopts 'b:fo:d:h' OPTION; do
+while getopts 'b:d:Dh' OPTION; do
     case ${OPTION} in
     b)
         NEW_DB_SIZE=${OPTARG}
@@ -37,6 +49,9 @@ while getopts 'b:fo:d:h' OPTION; do
     d)
         _DB_DEVICE=${OPTARG}
         IFS=',' read -r -a DB_DEVICE <<< "$_DB_DEVICE"        
+        ;;
+    D)
+        ECHO_IF_DRYRUN="echo"
         ;;
     h)
         usage
@@ -48,6 +63,8 @@ if [ -z $DB_DEVICE ]; then
     echo "Input required. See ./`basename "$0"` -h for usage details"
     exit 1
 fi
+
+warning 
 
 # Check cli depandancies
 check_dependancies
@@ -66,6 +83,15 @@ for device in ${DB_DEVICE[@]};do
     if [ "$DB_LV_COUNT" -eq 0 ];then
         echo "Warning: $device is has no Logical Volumes present, skipping"
         continue
+    else
+        # If there are lvs and the lv name formats are not "osd-db-*" then skip 
+        while [ $i -lt $DB_LV_COUNT ]; do
+            name=$(echo $DB_DEVICE_LV_JSON | jq -r --arg index $i '.[] | .[].lv | .[$index |tonumber].lv_name')
+            if echo $name | grep -v "osd-db" ;then
+                echo "Warning: $device has unknown lvs present and therefore is not a dedicated db device, skipping"
+                continue 2
+            fi
+        done
     fi
             
     # If there are lvs and the lv name formats are not "osd-db-*" then skip 
@@ -75,10 +101,6 @@ for device in ${DB_DEVICE[@]};do
     ALLOCATED_PHYSICAL_EXTENTS=$(echo $DB_DEVICE_PV_JSON | jq -r '.report | .[].pv | .[].pv_pe_alloc_count')
 
     if $AUTO_MODE ;then
-        # if max allowed space
-        # take count of lvs on db device
-        # take total of extents of db_device divide by count of lvs on db device, this is the new size for each lv
-
         echo "AUTO_MODE: Use Maximum Allowed Space"
         echo "DB_DEVICE:                    $device"
         echo "DB_LV_COUNT:                  $DB_LV_COUNT"
@@ -95,10 +117,6 @@ for device in ${DB_DEVICE[@]};do
         echo "CURRENT_DB_SIZE_BYTES:        $(numfmt --to=iec $CURRENT_DB_SIZE_BYTES)"
         echo "NEW_DB_SIZE_BYTES:            $(numfmt --to=iec $NEW_DB_SIZE_BYTES)"
     else
-        # if user specified
-        # take count of lvs on db device
-        # convert user spec. size to lv extents
-        # multiply desired lv extents by number of lvs on device, compare to total available, fail if doesnt fit
         echo "MANUAL_MODE: Use User Specified DB SIZE"
         echo "DB_DEVICE:                    $device"
         echo "DB_LV_COUNT:                  $DB_LV_COUNT"
@@ -128,10 +146,20 @@ for device in ${DB_DEVICE[@]};do
         fi
     fi
 
-    #Loop through each lv on the device
-    #need to get LV name
-    #need to get VG name
-    #need to get OSD.id
+    # Make sure ceph admin keyring is present hs correct permission
+    # Remove "set -e" so we can check ceph status error code
+    # Then turn it back on after
+    ceph status > /dev/null 2>&1 ; rc=$?
+    if [[ "$rc" -ne 0 ]];then
+        echo "Warning: permisson denied accessing cluster, admin keyring must be present"
+        exit 1
+    fi
+
+    CEPH_MAJOR_VERSION=$(ceph version | awk '{print $3}' | cut -d . -f 1)
+    if [ $CEPH_MAJOR_VERSION -gt "15" ];then
+        echo "Warning: current process is not supported on clusters version 16 and up"
+        exit 1
+    fi
 
     i=0
     while [ $i -lt $DB_LV_COUNT ]; do
@@ -142,17 +170,46 @@ for device in ${DB_DEVICE[@]};do
         OSD_ID=$( echo $OSD_JSON | jq  -r '.[] | .[].tags["ceph.osd_id"]')
         OSD_TYPE=$( echo $OSD_JSON | jq  -r '.[] | .[].type')
 
-        if [ $OSD_TYPE == "block" ];then
-            echo "Warning: /dev/$VG_NAME/$LV_NAME is a bluestore block device, skipping"
+        if [ "$OSD_TYPE" == "block" ];then
+            echo "Warning: /dev/$VG_NAME/$LV_NAME on device $device is a bluestore block device, skipping"
             continue 2
         fi
 
-        echo "LV_NAME:  $LV_NAME"
-        echo "VG_NAME:  $VG_NAME"
-        echo "OSD_ID:   $OSD_ID"
-        echo "OSD_TYPE: $OSD_TYPE"
+        echo "Extending db lv /dev/$VG_NAME/$LV_NAME to $NEW_DB_SIZE_EXTENTS"
+        $ECHO_IF_DRYRUN lvextend -l $NEW_DB_SIZE_EXTENTS /dev/$VG_NAME/$LV_NAME
+
+        # Call ceph health check function dont continue unless cluster healthy
+        CEPH_STATUS=$(ceph health --format json | jq -r '.status')
+        while [ "$CEPH_STATUS" != "HEALTH_OK" ]; do
+            echo "Warning: Cluster is not in HEALTH_OK state"
+            sleep 2
+            CEPH_STATUS=$(ceph health --format json | jq -r '.status')
+        done
+
+        echo "Stopping OSD.$OSD_ID"
+        $ECHO_IF_DRYRUN ceph osd set noout
+        $ECHO_IF_DRYRUN systemctl stop ceph-osd@$OSD_ID
+
+        echo "Expanding bluestore db device to fill new space"
+        $ECHO_IF_DRYRUN ceph-bluestore-tool bluefs-bdev-expand --path /var/lib/ceph/osd/ceph-$OSD_ID
+
+        echo "Start OSD again"
+        $ECHO_IF_DRYRUN systemctl start ceph-osd@$OSD_ID
+
+        echo "Unset noout"
+        $ECHO_IF_DRYRUN ceph osd unset noout
+
+        echo "Verify osd is back up before continuing"
+
+        OSD_STATE=$(ceph osd tree --format json | jq --arg id "$OSD_ID" -r '.nodes[] | select(.id == ($id |tonumber)) | .status')
+        echo "OSD_STATE:  $OSD_STATE"
+        while [ "$OSD_STATE" != "up" ]; do
+            echo "Warning: OSD.$OSD_ID is not UP yet. Waiting..."
+            sleep 2
+            OSD_STATE=$(ceph osd tree --format json | jq --arg id "$OSD_ID" -r '.nodes[] | select(.id == ($id |tonumber)) | .status')
+            echo "OSD_STATE:  $OSD_STATE"
+        done
 
         let i=i+1
     done
-    # extend lv /dev/vg_name/lv_name to either max allowed space or user specified
 done
