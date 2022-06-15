@@ -1,7 +1,7 @@
 #!/bin/bash
 # Brett Kelly Jun/21
 # 45Drives
-# Version 0.1 unstable
+# Version 0.2 unstable
 
 usage() { # Help
 cat << EOF
