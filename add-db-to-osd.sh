@@ -157,11 +157,12 @@ done
 # Then turn it back on after
 set +e
 ceph status > /dev/null 2>&1 ; rc=$?
+set -e
 if [[ "$rc" -ne 0 ]];then
-    echo "Warning: permisson denied accesing cluster, admin keyring must be present"
+    echo "Warning: permisson denied accessing cluster, admin keyring must be present"
     exit 1
 fi
-set -e
+
 
 CEPH_MAJOR_VERSION=$(ceph version | awk '{print $3}' | cut -d . -f 1)
 if [ $CEPH_MAJOR_VERSION -gt "15" ];then
