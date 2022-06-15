@@ -7,7 +7,7 @@ usage() { # Help
 cat << EOF
     Usage:	
         [-b] Block DB size to expand into. Optional
-        [-d] DB device to expand. Required. ?? Comma separated list of block devices. </dev/sda,/dev/1-1,/dev/nvme0n1> ??
+        [-d] DB device to expand. Required. Comma separated list of block devices. </dev/sda,/dev/1-1,/dev/nvme0n1>
         [-h] Displays this message
 EOF
     exit 0
@@ -34,9 +34,11 @@ check_dependancies(){
     done
 }
 
+set -e
+
 ECHO_IF_DRYRUN=""
 SCRIPT_DEPENDANCIES=(bc jq)
-PHYSICAL_EXTENT_SIZE_BYTES=4194304 # REPLACE WITH CHECK JUST IN CASE THIS IS DIFFERENT  
+PHYSICAL_EXTENT_SIZE_BYTES=4194304
 AUTO_MODE="true"
 
 while getopts 'b:d:Dh' OPTION; do
@@ -64,7 +66,7 @@ if [ -z $DB_DEVICE ]; then
     exit 1
 fi
 
-warning 
+warning
 
 # Check cli depandancies
 check_dependancies
@@ -75,74 +77,78 @@ for device in ${DB_DEVICE[@]};do
         continue
     fi
 
-    # VERIFY THAT DEVICE IS A DEDICATED DB DEVICE
+    ### VERIFY THAT DEVICE IS A DEDICATED DB DEVICE
     # If there are no lv's present then skip
-    # If there are lvs and the lv name formats are not "osd-db-*" then skip 
-    DB_DEVICE_LV_JSON=$(lvs --noheadings --reportformat json --devices $device -o lv_name,vg_name)
-    DB_LV_COUNT=$(echo $DB_DEVICE_LV_JSON | jq '.report | .[].lv | length')
+    # If there are lvs and the lv name formats are not "osd-db-*" then skip
+
+    # We are looking for dedicated db devices deployed with either ceph-volume or add-db-to-osd.sh
+    # A dedicated db deployed with either tool will have only 1 volume group with the name ceph-$(uuid)
+    # skip device if no vg present
+    # skip device if more than 1 vg present
+    # skip device if vg does not have name syntax matching ceph-$(uuidgen)
+
+    DB_VG_COUNT=$(pvs --noheadings --reportformat json $device -o vg_name | jq -r '.report | .[].pv | length')
+    if [ "$DB_VG_COUNT" -eq 0 ];then
+        echo "Warning: $device is has no volume groups present, skipping"
+        continue
+    elif [ "$DB_VG_COUNT" -gt 1 ];then
+        echo "Warning: $device has more than one volume group present, skipping"
+        continue
+    fi
+    DB_VG_NAME=$(pvs --noheadings --reportformat json $device -o vg_name | jq -r '.report | .[].pv | .[0].vg_name')
+    if echo $DB_VG_NAME | grep -vqE "ceph-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89aAbB][a-f0-9]{3}-[a-f0-9]{12}" ;then
+        echo "Warning: $device has unknown vg present, skipping"
+        continue
+    fi
+    DB_VG_PHYSICAL_EXTENT=$(pvs --noheadings --reportformat json $device -o vg_extent_size --units B --nosuffix | jq -r '.report | .[].pv | .[0].vg_extent_size')
+    if [ "$DB_VG_PHYSICAL_EXTENT" -ne "$PHYSICAL_EXTENT_SIZE_BYTES" ];then
+        echo "Warning: Physical Extent size is not the default 4MiB, skipping"
+        continue
+    fi
+
+    DB_DEVICE_LV_JSON=$(vgs --noheadings --reportformat json -o lv_name,vg_name $DB_VG_NAME)
+    DB_LV_COUNT=$(echo $DB_DEVICE_LV_JSON | jq '.report | .[].vg | length')
     if [ "$DB_LV_COUNT" -eq 0 ];then
         echo "Warning: $device is has no Logical Volumes present, skipping"
         continue
     else
-        # If there are lvs and the lv name formats are not "osd-db-*" then skip 
+        # If there are lvs and the lv name formats are not "osd-db-$(uuidgen)" then skip 
+        i=0
         while [ $i -lt $DB_LV_COUNT ]; do
             name=$(echo $DB_DEVICE_LV_JSON | jq -r --arg index $i '.[] | .[].lv | .[$index |tonumber].lv_name')
-            if echo $name | grep -v "osd-db" ;then
-                echo "Warning: $device has unknown lvs present and therefore is not a dedicated db device, skipping"
+            if echo $name | grep -qE "osd-db-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89aAbB][a-f0-9]{3}-[a-f0-9]{12}" ;then
+                echo "Warning: $device has non db lvs present and therefore is not a dedicated db device, skipping"
                 continue 2
             fi
+            let i=i+1
         done
     fi
-            
-    # If there are lvs and the lv name formats are not "osd-db-*" then skip 
+    ###
 
-    DB_DEVICE_PV_JSON=$(pvs --noheadings --reportformat json --devices $device -o pv_pe_count,pv_pe_alloc_count)
+    DB_DEVICE_PV_JSON=$(pvs --noheadings --reportformat json $device -o pv_pe_count,pv_pe_alloc_count)
     TOTAL_PHYSICAL_EXTENTS=$(echo $DB_DEVICE_PV_JSON | jq -r '.report | .[].pv | .[].pv_pe_count')
     ALLOCATED_PHYSICAL_EXTENTS=$(echo $DB_DEVICE_PV_JSON | jq -r '.report | .[].pv | .[].pv_pe_alloc_count')
 
     if $AUTO_MODE ;then
-        echo "AUTO_MODE: Use Maximum Allowed Space"
-        echo "DB_DEVICE:                    $device"
-        echo "DB_LV_COUNT:                  $DB_LV_COUNT"
-        echo "TOTAL_PHYSICAL_EXTENTS:       $TOTAL_PHYSICAL_EXTENTS"
-        echo "ALLOCATED_PHYSICAL_EXTENTS:   $ALLOCATED_PHYSICAL_EXTENTS"
-
-        CURRENT_DB_SIZE_EXTENTS=$(bc <<< "$ALLOCATED_PHYSICAL_EXTENTS/$DB_LV_COUNT")
+        echo "MODE:                 Use Maximum Allowed Space"
+        echo "DB_DEVICE:            $device"   
         NEW_DB_SIZE_EXTENTS=$(bc <<< "$TOTAL_PHYSICAL_EXTENTS/$DB_LV_COUNT")
-        CURRENT_DB_SIZE_BYTES=$(bc <<< "$PHYSICAL_EXTENT_SIZE_BYTES*$CURRENT_DB_SIZE_EXTENTS")
         NEW_DB_SIZE_BYTES=$(bc <<< "$PHYSICAL_EXTENT_SIZE_BYTES*$NEW_DB_SIZE_EXTENTS")
-
-        echo "CURRENT_DB_SIZE_EXTENTS:      $CURRENT_DB_SIZE_EXTENTS"
-        echo "NEW_DB_SIZE_EXTENTS:          $NEW_DB_SIZE_EXTENTS"
-        echo "CURRENT_DB_SIZE_BYTES:        $(numfmt --to=iec $CURRENT_DB_SIZE_BYTES)"
-        echo "NEW_DB_SIZE_BYTES:            $(numfmt --to=iec $NEW_DB_SIZE_BYTES)"
+        echo "NEW_DB_SIZE_BYTES:    $(numfmt --to=iec $NEW_DB_SIZE_BYTES)"
+        echo "NEW_DB_SIZE_EXTENTS:  $NEW_DB_SIZE_EXTENTS"
     else
-        echo "MANUAL_MODE: Use User Specified DB SIZE"
+        echo "MODE:                         Use User Specified DB SIZE"
         echo "DB_DEVICE:                    $device"
-        echo "DB_LV_COUNT:                  $DB_LV_COUNT"
-        echo "TOTAL_PHYSICAL_EXTENTS:       $TOTAL_PHYSICAL_EXTENTS"
-        echo "ALLOCATED_PHYSICAL_EXTENTS:   $ALLOCATED_PHYSICAL_EXTENTS"
-
-        TOTAL_PHYSICAL_BYTES=$(bc <<< "$TOTAL_PHYSICAL_EXTENTS*$PHYSICAL_EXTENT_SIZE_BYTES")
-        CURRENT_DB_SIZE_EXTENTS=$(bc <<< "$ALLOCATED_PHYSICAL_EXTENTS/$DB_LV_COUNT")
-        CURRENT_DB_SIZE_BYTES=$(bc <<< "$PHYSICAL_EXTENT_SIZE_BYTES*$CURRENT_DB_SIZE_EXTENTS")
         NEW_DB_SIZE_EXTENTS=$(bc <<< "$NEW_DB_SIZE_BYTES/$PHYSICAL_EXTENT_SIZE_BYTES")
+        TOTAL_PHYSICAL_BYTES=$(bc <<< "$TOTAL_PHYSICAL_EXTENTS*$PHYSICAL_EXTENT_SIZE_BYTES")
         NEW_TOTAL_DB_SIZE_EXTENTS=$(bc <<< "$NEW_DB_SIZE_EXTENTS*$DB_LV_COUNT")
-        NEW_TOTAL_DB_SIZE_BYTES=$(bc <<< "$NEW_TOTAL_DB_SIZE_EXTENTS*$PHYSICAL_EXTENT_SIZE_BYTES")
-
-        echo "CURRENT_DB_SIZE_EXTENTS:      $CURRENT_DB_SIZE_EXTENTS"
+        echo "NEW_DB_SIZE_BYTES:            $NEW_DB_SIZE_BYTES"
         echo "NEW_DB_SIZE_EXTENTS:          $NEW_DB_SIZE_EXTENTS"
-        echo "NEW_TOTAL_DB_SIZE_EXTENTS:    $NEW_TOTAL_DB_SIZE_EXTENTS"
 
-        # NEW_DB_SIZE_EXTENTS cant be less than CURRENT_DB_SIZE_EXTENTS
-        if [ $NEW_DB_SIZE_EXTENTS -lt $CURRENT_DB_SIZE_EXTENTS ];then
-            echo "Warning: New DB Size ($(numfmt --to=iec $NEW_DB_SIZE_BYTES)) cannot be less than Current DB Size ($(numfmt --to=iec $CURRENT_DB_SIZE_BYTES)) "
-            exit 1
-        fi
         #NEW_TOTAL_DB_SIZE_EXTENTS cant be greater than TOTAL_PHYSICAL_EXTENTS
         if [ $NEW_TOTAL_DB_SIZE_EXTENTS -gt $TOTAL_PHYSICAL_EXTENTS ];then
             echo "Warning: New total DB size ($(numfmt --to=iec $NEW_TOTAL_DB_SIZE_BYTES)) exceeds the total available space on the DB device ($(numfmt --to=iec $TOTAL_PHYSICAL_BYTES))"
-            exit 1
+            continue 
         fi
     fi
 
@@ -164,8 +170,8 @@ for device in ${DB_DEVICE[@]};do
     i=0
     while [ $i -lt $DB_LV_COUNT ]; do
 
-        LV_NAME=$(echo $DB_DEVICE_LV_JSON | jq -r --arg index $i '.[] | .[].lv | .[$index |tonumber].lv_name')
-        VG_NAME=$(echo $DB_DEVICE_LV_JSON | jq -r --arg index $i '.[] | .[].lv | .[$index |tonumber].vg_name')
+        LV_NAME=$(echo $DB_DEVICE_LV_JSON | jq -r --arg index $i '.[] | .[].vg | .[$index |tonumber].lv_name')
+        VG_NAME=$(echo $DB_DEVICE_LV_JSON | jq -r --arg index $i '.[] | .[].vg | .[$index |tonumber].vg_name')
         OSD_JSON=$(ceph-volume lvm list --format json /dev/$VG_NAME/$LV_NAME)
         OSD_ID=$( echo $OSD_JSON | jq  -r '.[] | .[].tags["ceph.osd_id"]')
         OSD_TYPE=$( echo $OSD_JSON | jq  -r '.[] | .[].type')
@@ -179,12 +185,15 @@ for device in ${DB_DEVICE[@]};do
         $ECHO_IF_DRYRUN lvextend -l $NEW_DB_SIZE_EXTENTS /dev/$VG_NAME/$LV_NAME
 
         # Call ceph health check function dont continue unless cluster healthy
+        set +e
         CEPH_STATUS=$(ceph health --format json | jq -r '.status')
+        set -e
         while [ "$CEPH_STATUS" != "HEALTH_OK" ]; do
             echo "Warning: Cluster is not in HEALTH_OK state"
             sleep 2
             CEPH_STATUS=$(ceph health --format json | jq -r '.status')
         done
+        
 
         echo "Stopping OSD.$OSD_ID"
         $ECHO_IF_DRYRUN ceph osd set noout
