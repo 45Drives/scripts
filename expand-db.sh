@@ -1,7 +1,7 @@
 #!/bin/bash
 # Brett Kelly Jun/21
 # 45Drives
-# Version 0.2 unstable
+# Version 1.0 stable
 
 usage() { # Help
 cat << EOF
@@ -11,17 +11,6 @@ cat << EOF
         [-h] Displays this message
 EOF
     exit 0
-}
-
-warning(){
-    read -p "This is currently pre-release, use at your own risk. To continue enter 'y' " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]];then
-        :
-    else
-        echo "Exiting..."
-        exit 1
-    fi
 }
 
 check_dependancies(){
@@ -65,8 +54,6 @@ if [ -z $DB_DEVICE ]; then
     echo "Input required. See ./`basename "$0"` -h for usage details"
     exit 1
 fi
-
-warning
 
 # Check cli depandancies
 check_dependancies
