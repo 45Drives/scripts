@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+from optparse import OptionParser
+import os
+import sys
+import json
+import subprocess
+import time
+import shlex
+
+def wizard(params,server_info):
+    # get name of test
+    params["test_name"] = input("Provide a test name: ")
+    params["room_temp_c"], params["room_temp_f"] = get_room_temperature()
+    params["max_duration"] = get_test_duration()
+    params["polling_interval"], tmap_result = get_tmap_interval()
+    params["fio_flag"] = get_fio_setting()
+    params["graph_flag"] = get_graph_flag()
+    params["graph_settings"] = get_graph_settings(params,server_info,tmap_result) if params["graph_flag"] else {}
+
+def get_room_temperature():
+    temp_type = ""
+    room_temp = ""
+    while(not room_temp.isnumeric()):
+        room_temp = input("Provide room temperature reading (number only): ")
+        if not room_temp.isnumeric():
+            print("invalid room temperature provided, try again.")
+    while(temp_type not in ["c","f"]):
+        temp_type = input("Temperature reporting (c=celcius, f=farenheit): ")
+        if temp_type not in ["c","f"]:
+            print(f"Invalid selection \"{temp_type}\"")
+    
+    rtc = 0
+    rtf = 0
+
+    if temp_type == "c":
+        rtc = int(room_temp)
+        rtf = int((int(room_temp) * (9/5)) + 32)
+    elif temp_type == "f":
+        rtf = int(room_temp)
+        rtc = int((int(room_temp) - 32) * (5/9))
+
+    return rtc, rtf
+
+def get_test_duration():
+    valid = False
+    dur_s = 0
+    dur_str = None
+    while(not valid):
+        dur_str = input("maximum test duration (HH:MM): ")
+        dur_args = dur_str.split(":")
+        if len(dur_args) == 2 and dur_args[0].isnumeric() and dur_args[1].isnumeric():
+            dur_s = int(dur_args[0])*3600 + int(dur_args[1])*60
+            valid = True
+        else:
+            print("Invalid test duration provided. Try again.")
+            valid = False
+    return dur_s
+
+def get_tmap_interval():
+    start_time = time.time()
+    print("determining ideal measurement interval, please wait...")
+    tmap_result = run_tmap(start_time)
+    measurement_duration = tmap_result["duration"]
+    measurement_interval = ((measurement_duration + int((measurement_duration*0.25))) * 3) + 5
+    print(f"Ideal interval between measurements calculated to be: {measurement_interval} s")
+    selection = ""
+    while(selection not in ["y","Y"]):
+        selection = input("Would you like to use this interval between measurements? (y/n): ")
+        if selection in ["n","N"]:
+            user_interval = input("Provide an interval between measurements (in seconds): ")
+            if user_interval.isnumeric() and int(user_interval) > (measurement_duration + int((measurement_duration*0.25)) + 5):
+                measurement_interval = int(user_interval)
+            elif user_interval.isnumeric():
+                print("Warning: measurement interval provided will not allow enough time to perform a fio job between readings.")
+                measurement_interval = int(user_interval)
+            else:
+                print("Invalid measurement interval provided. Try again")
+    return measurement_interval, tmap_result
+
+def run_tmap(start_time):
+    # run tmap and append the time that the measurement started as well as the duration of the measurement
+    tmap_start_time = time.time()
+    tmap = subprocess.Popen(
+        shlex.split("./tmap"), stdout=subprocess.PIPE, universal_newlines=True)
+    tmap_output = tmap.communicate()
+    tmap_json = json.loads(tmap_output[0])
+    tmap_end_time = time.time()
+    tmap_json["time"] = int(tmap_start_time - start_time)
+    tmap_json["duration"] = int(tmap_end_time - tmap_start_time)
+    return tmap_json
+
+def get_fio_setting():
+    selection = ""
+    flag = True
+    while selection not in ["y","Y","n","N"]:
+        selection = input("Would you like to read from all disks between measurements using fio? (y/n): ")
+        if selection not in ["y","Y","n","N"]:
+            print("Invalid selection. Try again.")
+    if selection in ["y","Y"]:
+        flag = True
+    if selection in ["n","N"]:
+        flag = False
+    return flag
+
+def get_graph_flag():
+    selection = ""
+    flag = True
+    while selection not in ["y","Y","n","N"]:
+        selection = input("Would you like a graph of the test results? (y/n): ")
+        if selection not in ["y","Y","n","N"]:
+            print("Invalid selection. Try again.")
+    if selection in ["y","Y"]:
+        flag = True
+    if selection in ["n","N"]:
+        flag = False
+    return flag
+
+def get_graph_settings(params,server_info,tmap_result):
+    graph_vars = {
+        "title": ""
+    }
+    graph_vars["title"] = "{model} - {dc} Drives - {rt}°C".format(model=server_info["Model"],dc=len(tmap_result["DISKS"]),rt=params["room_temp_c"])
+    print("Auto-generated title for graph: {t}".format(t=graph_vars["title"]))
+    return graph_vars
+
+def get_server_info():
+    # get server_info.json file and read it in
+    si_path = "/etc/45drives/server_info/server_info.json"
+    if not os.path.exists(si_path) or not os.path.isfile(si_path):
+        print(f"Required File: '{si_path}' was not found. Ensure that 45drives-tools is installed and run 'dmap'. Then try again.")
+        sys.exit(1)
+    server_info = None
+    with open(si_path,"r") as si_f:
+        try:
+            server_info = json.load(si_f)
+        except:
+            print("Failed to load json data from '{si_path}'")
+            sys.exit(1)
+    return server_info
+
+def run_tplot(params):
+    #./tplot -o output/$TEST_NAME.csv -d 120 -i 10 -s 3 -f
+    steady_state = 3 + int((60/params["polling_interval"]))
+
+    command = "./tplot -o output/{tn}.csv -d {dur} -i {pi} -s {ss} {fio}".format(
+        tn=params["test_name"],
+        dur=params["max_duration"],
+        pi=params["polling_interval"],
+        ss=steady_state,
+        fio = "-f" if params["fio_flag"] else ""
+        )
+    return os.system(command)
+    
+
+
+
+
+def run_csv_converter(params):
+    #./csv_converter -i output/$TEST_NAME.csv -o chart_csv/$TEST_NAME.csv
+    print("Converting {tn}.csv".format(tn=params["test_name"]))
+    command = "./csv_converter -i output/{tn}.csv -o chart_csv/{tn}.csv".format(tn=params["test_name"])
+    return os.system(command)
+
+def run_make_graph(params):
+    #./make_graph -i chart_csv/$TEST_NAME.csv -o graphs/$TEST_NAME.png -t "$GRAPH_TITLE"
+    print("Making graph")
+    command = "./make_graph -i chart_csv/{tn}.csv -o graphs/{tn}.png -t '{gt}'".format(tn=params["test_name"],gt=params["graph_settings"]["title"])
+    return os.system(command)
+
+def show_welcome():
+    msg = [
+    "                                                            ",
+    "   /$$     /$$                                     /$$      ",
+    "  | $$    | $$                                    | $$      ",
+    " /$$$$$$  | $$$$$$$   /$$$$$$  /$$$$$$$   /$$$$$$$| $$$$$$$ ",
+    "|_  $$_/  | $$__  $$ /$$__  $$| $$__  $$ /$$_____/| $$__  $$",
+    "  | $$    | $$  \ $$| $$$$$$$$| $$  \ $$| $$      | $$  \ $$",
+    "  | $$ /$$| $$  | $$| $$_____/| $$  | $$| $$      | $$  | $$",
+    "  |  $$$$/| $$$$$$$/|  $$$$$$$| $$  | $$|  $$$$$$$| $$  | $$",
+    "   \___/  |_______/  \_______/|__/  |__/ \_______/|__/  |__/",
+    "                                                            "]
+    for line in msg:
+        print(line)
+
+def main():
+    #parser = OptionParser()  # use optparse to handle command line arguments
+    #parser.add_option("-i", "--input", action="store", type="string",
+    #                  dest="input_file", default=None, help="input file [default: %default]")
+    #parser.add_option("-o", "--output", action="store", type="string",
+    #                  dest="output_file", default="out.csv", help="output file [default: %default]")
+    #(args, cli_args) = parser.parse_args()
+
+    show_welcome()
+    params = {
+        "test_name": "",
+        "room_temp_c": "",
+        "room_temp_f": "",
+        "max_duration": 3600,
+        "polling_interval": 60,
+        "fio_flag": True,
+        "graph_flag": True,
+        "graph_settings": {}
+    }
+    server_info = get_server_info()
+    wizard(params,server_info)
+    print(json.dumps(params,indent=4))
+    rv = run_tplot(params)
+    if rv == 0:
+        rv = run_csv_converter(params)
+    if rv == 0 and params["graph_flag"]:
+        rv = run_make_graph(params)
+    
+    if rv == 0:
+        print("thermal benchmark complete.")
+        print("raw data is here: output/{tn}.csv".format(tn=params["test_name"]))
+        if params["graph_flag"]:
+            print("graph is here: graphs/{tn}.png".format(tn=params["test_name"]))
+
+
+if __name__ == "__main__":
+    main()

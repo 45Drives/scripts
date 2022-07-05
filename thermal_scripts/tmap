@@ -16,14 +16,29 @@ import re
 
 
 def get_hba_temps(hba_arr):
+    storcli2_cards = ["9600-16i","9600-24i"]
+    storcli_paths = {
+        "storcli64": "./dependencies/storcli64",
+        "storcli2": "./dependencies/storcli2"
+    }
+
     for hba in hba_arr:
-        storcli = subprocess.Popen(
-            shlex.split("/opt/45drives/tools/storcli64 /c{ctl} show all J".format(ctl=hba["Ctl"])), stdout=subprocess.PIPE, universal_newlines=True)
-        jq = subprocess.Popen(
-            shlex.split("jq '.Controllers[0].\"Response Data\".\"HwCfg\".\"ROC temperature(Degree Celcius)\"'"), stdin=storcli.stdout, stdout=subprocess.PIPE, universal_newlines=True)
-        for temp in jq.stdout:
-            hba["temp_C"] = int(temp)
-            hba["temp_F"] = int((int(temp) * (9/5)) + 32)
+        if hba["Model"] not in storcli2_cards:
+            storcli = subprocess.Popen(
+                shlex.split("{pth} /c{ctl} show all J".format(pth=storcli_paths["storcli64"],ctl=hba["Ctl"])), stdout=subprocess.PIPE, universal_newlines=True)
+            jq = subprocess.Popen(
+                shlex.split("jq '.Controllers[0].\"Response Data\".\"HwCfg\".\"ROC temperature(Degree Celcius)\"'"), stdin=storcli.stdout, stdout=subprocess.PIPE, universal_newlines=True)
+            for temp in jq.stdout:
+                hba["temp_C"] = int(temp)
+                hba["temp_F"] = int((int(temp) * (9/5)) + 32)
+        else:
+            storcli2 = subprocess.Popen(
+                shlex.split("{pth} /c{ctl} show all J nolog".format(pth=storcli_paths["storcli2"],ctl=hba["Ctl"])), stdout=subprocess.PIPE, universal_newlines=True)
+            jq = subprocess.Popen(
+                shlex.split("jq '.Controllers[0].\"Response Data\".\"HwCfg\".\"Chip temperature(C)\"'"), stdin=storcli2.stdout, stdout=subprocess.PIPE, universal_newlines=True)
+            for temp in jq.stdout:
+                hba["temp_C"] = int(temp)
+                hba["temp_F"] = int((int(temp) * (9/5)) + 32)
 
 
 def get_disk_temps():
@@ -97,7 +112,7 @@ def ipmitool_sensor():
 
 def main():
     server = {}
-    server["HBA"], hybrid = server_identifier.hba()
+    server["HBA"], hybrid = server_identifier.hba_lspci()
     get_hba_temps(server["HBA"])
     server["DISKS"] = get_disk_temps()
     server["CPU"], server["RAM"] = get_cpu_and_ram_temps()

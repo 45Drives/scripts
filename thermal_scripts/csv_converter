@@ -45,7 +45,12 @@ def get_averages_dict(input_list):
         avg = 0
         for i in range(0,len(cpu)):      
             avg += int(cpu[i][j])
-        output_dict["CPU"].append(str(int(avg/len(cpu))))
+        if len(cpu) > 1:
+            output_dict["CPU (avg)"] = []
+            output_dict["CPU (avg)"].append(str(int(avg/len(cpu))))
+            output_dict.pop("CPU",None) # remove CPU entry from dict
+        else:
+            output_dict["CPU"].append(str(int(avg/len(cpu))))
         avg = 0
 
     for j in range(0,len(hba[0])):
