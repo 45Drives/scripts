@@ -83,7 +83,7 @@ def update_row_col(row,col,row_start,col_start,col_shift,win):
     return row, col
 
 def generate_summary(t_data,args,win):
-    pad = 8
+    pad = 10
     dots = ""
     s_data = t_data
     if (len(t_data) > args.ss_count):
@@ -92,7 +92,7 @@ def generate_summary(t_data,args,win):
 
     row_start = 3
     row = row_start
-    col_gap = 5
+    col_gap = 10
     col_start = 0
     col = col_start
 
@@ -407,7 +407,7 @@ def main(main_screen,args):
 if __name__ == "__main__":
     parser = OptionParser()  # use optparse to handle command line arguments
     parser.add_option("-s", "--ss_count", action="store", type="int",
-                      dest="ss_count", default=4, help="stop the test after this consecutive number of readings. [default: %default]")
+                      dest="ss_count", default=4, help="stop the test after this consecutive number of identical readings. [default: %default]")
     parser.add_option("-d", "--duration", action="store", type="int",
                       dest="max_duration", default=1800, help="The maximum duration of the test in seconds. [default: %default]")
     parser.add_option("-i", "--polling_interval", action="store", type="int", 
