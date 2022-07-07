@@ -196,17 +196,17 @@ def ss_check(t_data_current, ss_count,win):
     ram_ss_bool = bool(ram_ss >= int(ram_target*ram_threshold))
 
     ss_string = "Steady State:"
-    hba_string = " [HBA ({v}/{t}) {p}%] ".format(v=hba_ss,t=hba_target,p=(hba_ss/hba_target)*100)
-    disk_string = " [DISKS ({v}/{t}) {p}%] ".format(v=disk_ss,t=disk_target,p=(disk_ss/disk_target)*100)
-    cpu_string = " [CPU ({v}/{t}) {p}%] ".format(v=cpu_ss,t=cpu_target,p=(cpu_ss/cpu_target)*100)
-    ram_string = " [RAM ({v}/{t}) {p}%] ".format(v=ram_ss,t=ram_target,p=(ram_ss/ram_target)*100)
+    hba_string = " [HBA ({v}/{t}) {p}%] ".format(v=hba_ss,t=hba_target,p=round((hba_ss/hba_target)*100,2))
+    disk_string = " [DISKS ({v}/{t}) {p}%] ".format(v=disk_ss,t=disk_target,p=round((disk_ss/disk_target)*100,2))
+    cpu_string = " [CPU ({v}/{t}) {p}%] ".format(v=cpu_ss,t=cpu_target,p=round((cpu_ss/cpu_target)*100,2))
+    ram_string = " [RAM ({v}/{t}) {p}%] ".format(v=ram_ss,t=ram_target,p=round((ram_ss/ram_target)*100,2))
 
     hba_color = 1 if hba_ss_bool else 0
     disk_color = 1 if disk_ss_bool else 0
     cpu_color = 1 if cpu_ss_bool else 0
     ram_color = 1 if ram_ss_bool else 0
 
-    col = 40
+    col = 30
     win.addstr(0,col,ss_string,curses.color_pair(0))
     col += len(ss_string)
     win.addstr(0,col,hba_string,curses.color_pair(hba_color))

@@ -6,6 +6,7 @@ import json
 import subprocess
 import time
 import shlex
+import shutil
 
 def wizard(params,server_info):
     # get name of test
@@ -16,6 +17,7 @@ def wizard(params,server_info):
     params["fio_flag"] = get_fio_setting()
     params["graph_flag"] = get_graph_flag()
     params["graph_settings"] = get_graph_settings(params,server_info,tmap_result) if params["graph_flag"] else {}
+    params["rsync_settings"] = get_rsync_params()
 
 def get_room_temperature():
     temp_type = ""
@@ -123,6 +125,39 @@ def get_graph_settings(params,server_info,tmap_result):
     print("Auto-generated title for graph: {t}".format(t=graph_vars["title"]))
     return graph_vars
 
+def get_rsync_params():
+    rsync_settings = {
+        "rsync_flag": False,
+        "rsync_user": "",
+        "rsync_host": "",
+        "rsync_dir": "",
+        "rsync_command": ""
+    }
+
+    response = input("Would you like to send the results to a host using rsync? (y/n): ")
+    if response in ["y","Y"]:
+        confirm = "n"
+        while(confirm not in ["y","Y"]):
+            rsync_settings["rsync_flag"] = True
+            rsync_settings["rsync_user"] = input("enter user for rsync target (ex: root): ")
+            rsync_settings["rsync_host"] = input("enter ip/hostname to rsync to (ex: server): ")
+            rsync_settings["rsync_dir"] = input("enter the directory on target machine. (ex: /home/user): ")
+            if rsync_settings["rsync_dir"] and rsync_settings["rsync_dir"][-1] == "/":
+                rsync_settings["rsync_dir"] = rsync_settings["rsync_dir"][:-1]
+            print("rsync command: rsync -avh <files> {u}@{h}:{d}/".format(u=rsync_settings["rsync_user"], h=rsync_settings["rsync_host"], d=rsync_settings["rsync_dir"]))
+            confirm = input("Use of the command shown above? (y,n): ")
+            if confirm in ["y","Y"]:
+                rsync_settings["rsync_command"] = "rsync -avh <files> {u}@{h}:{d}/".format(u=rsync_settings["rsync_user"], h=rsync_settings["rsync_host"], d=rsync_settings["rsync_dir"])
+            else:
+                cancel = input("abandon using rsync? (y/n): ")
+                if cancel in ["y","Y"]:
+                    confirm = "y"
+    if len(rsync_settings["rsync_command"]) == 0:
+        rsync_settings["rsync_flag"] = False
+    
+    return rsync_settings
+        
+
 def get_server_info():
     # get server_info.json file and read it in
     si_path = "/etc/45drives/server_info/server_info.json"
@@ -167,6 +202,16 @@ def run_make_graph(params):
     command = "./make_graph -i chart_csv/{tn}.csv -o graphs/{tn}.png -t '{gt}'".format(tn=params["test_name"],gt=params["graph_settings"]["title"])
     return os.system(command)
 
+def run_rsync(params):
+    os.makedirs("./tbench_results/{tn}".format(tn=params["test_name"]),exist_ok=True)
+    shutil.copyfile("./output/{tn}.csv".format(tn=params["test_name"]), "./tbench_results/{tn}/{tn}_raw.csv".format(tn=params["test_name"]))
+    shutil.copyfile("./chart_csv/{tn}.csv".format(tn=params["test_name"]), "./tbench_results/{tn}/{tn}_chart.csv".format(tn=params["test_name"]))
+    if params["graph_flag"]:
+        shutil.copyfile("./graphs/{tn}.png".format(tn=params["test_name"]), "./tbench_results/{tn}/{tn}.png".format(tn=params["test_name"]))
+
+    command = "rsync -avh ./tbench_results/{tn} {u}@{h}:{d}/".format(tn=params["test_name"],u=params["rsync_settings"]["rsync_user"],h=params["rsync_settings"]["rsync_host"],d=params["rsync_settings"]["rsync_dir"])
+    return os.system(command)
+
 def show_welcome():
     msg = [
     "                                                            ",
@@ -199,7 +244,8 @@ def main():
         "polling_interval": 60,
         "fio_flag": True,
         "graph_flag": True,
-        "graph_settings": {}
+        "graph_settings": {},
+        "rsync_settings": {}
     }
     server_info = get_server_info()
     wizard(params,server_info)
@@ -210,6 +256,9 @@ def main():
     if rv == 0 and params["graph_flag"]:
         rv = run_make_graph(params)
     
+    if rv == 0 and params["rsync_settings"]["rsync_flag"]:
+        rv = run_rsync(params)
+
     if rv == 0:
         print("thermal benchmark complete.")
         print("raw data is here: output/{tn}.csv".format(tn=params["test_name"]))
