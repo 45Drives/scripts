@@ -105,7 +105,7 @@ def generate_summary(t_data,args,win):
         win.addstr(row,col,name_string)
         col += len(name_string)
         for j in range(0, len(s_data)):
-            color_number = 0 if s_data[j]["HBA"][i]["temp_C"] != s_data[-1]["HBA"][i]["temp_C"] else 1
+            color_number = 0 if s_data[j]["HBA"][i]["temp_C"] < s_data[-1]["HBA"][i]["temp_C"] else 1
             win.addstr(row,col,str(s_data[j]["HBA"][i]["temp_C"]),curses.color_pair(color_number))
             col += len(str(s_data[j]["HBA"][i]["temp_C"]))
             if j != len(s_data)-1: win.addstr(row,col,",",curses.color_pair(0))
@@ -122,7 +122,7 @@ def generate_summary(t_data,args,win):
         win.addstr(row,col,name_string)
         col += len(name_string)
         for j in range(0, len(s_data)):
-            color_number = 0 if s_data[j]["CPU"][i]["temp_C"] != s_data[-1]["CPU"][i]["temp_C"] else 1
+            color_number = 0 if s_data[j]["CPU"][i]["temp_C"] < s_data[-1]["CPU"][i]["temp_C"] else 1
             win.addstr(row,col,str(s_data[j]["CPU"][i]["temp_C"]),curses.color_pair(color_number))
             col += len(str(s_data[j]["CPU"][i]["temp_C"]))
             if j != len(s_data)-1: win.addstr(row,col,",",curses.color_pair(0))
@@ -137,7 +137,7 @@ def generate_summary(t_data,args,win):
         win.addstr(row,col,name_string)
         col += len(name_string)
         for j in range(0, len(s_data)):
-            color_number = 0 if s_data[j]["DISKS"][i]["temp_C"] != s_data[-1]["DISKS"][i]["temp_C"] else 1
+            color_number = 0 if s_data[j]["DISKS"][i]["temp_C"] < s_data[-1]["DISKS"][i]["temp_C"] else 1
             win.addstr(row,col,str(s_data[j]["DISKS"][i]["temp_C"]),curses.color_pair(color_number))
             col += len(str(s_data[j]["DISKS"][i]["temp_C"]))
             if j != len(s_data)-1: win.addstr(row,col,",",curses.color_pair(0))
@@ -153,7 +153,7 @@ def generate_summary(t_data,args,win):
         win.addstr(row,col,name_string)
         col += len(name_string)
         for j in range(0, len(s_data)):
-            color_number = 0 if s_data[j]["RAM"][i]["temp_C"] != s_data[-1]["RAM"][i]["temp_C"] else 1
+            color_number = 0 if s_data[j]["RAM"][i]["temp_C"] < s_data[-1]["RAM"][i]["temp_C"] else 1
             win.addstr(row,col,str(s_data[j]["RAM"][i]["temp_C"]),curses.color_pair(color_number))
             col += len(str(s_data[j]["RAM"][i]["temp_C"]))
             if j != len(s_data)-1: win.addstr(row,col,",",curses.color_pair(0))
@@ -387,16 +387,16 @@ def main(main_screen,args):
             reset_t_data_counts(t_data_current)
             for capture in t_data[-args.ss_count:]:
                 for i in range(0, len(capture["HBA"])):
-                    if capture["HBA"][i]["temp_C"] == t_data_current["HBA"][i]["temp_C"]:
+                    if capture["HBA"][i]["temp_C"] >= t_data_current["HBA"][i]["temp_C"]:
                         t_data_current["HBA"][i]["temp_eq_count"] += 1
                 for i in range(0, len(capture["DISKS"])):
-                    if capture["DISKS"][i]["temp_C"] == t_data_current["DISKS"][i]["temp_C"]:
+                    if capture["DISKS"][i]["temp_C"] >= t_data_current["DISKS"][i]["temp_C"]:
                         t_data_current["DISKS"][i]["temp_eq_count"] += 1
                 for i in range(0, len(capture["CPU"])):
-                    if capture["CPU"][i]["temp_C"] == t_data_current["CPU"][i]["temp_C"]:
+                    if capture["CPU"][i]["temp_C"] >= t_data_current["CPU"][i]["temp_C"]:
                         t_data_current["CPU"][i]["temp_eq_count"] += 1
                 for i in range(0, len(capture["RAM"])):
-                    if capture["RAM"][i]["temp_C"] == t_data_current["RAM"][i]["temp_C"]:
+                    if capture["RAM"][i]["temp_C"] >= t_data_current["RAM"][i]["temp_C"]:
                         t_data_current["RAM"][i]["temp_eq_count"] += 1
             done = ss_check(t_data_current, args.ss_count, main_screen)
             ss_flag = done

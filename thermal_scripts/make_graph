@@ -74,7 +74,7 @@ def main():
         "CPU (avg)": "red",
         "CPU": "red",
         "RAM (avg)": "green",
-        "HDD Row 1 (avg)": "gold",
+        "HDD Row 1 (avg)": "olive",
         "HDD Row 2 (avg)": "orange",
         "HDD Row 3 (avg)": "aqua",
         "HDD Row 4 (avg)": "magenta"
