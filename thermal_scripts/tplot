@@ -185,16 +185,21 @@ def ss_check(t_data_current, ss_count,win):
     cpu_target =  len(t_data_current["CPU"]) * ss_count
     ram_target = len(t_data_current["RAM"]) * ss_count
 
-    hba_ss_bool = bool(hba_ss >= hba_target)
-    disk_ss_bool = bool(disk_ss >= disk_target)
-    cpu_ss_bool = bool(cpu_ss >= cpu_target)
-    ram_ss_bool = bool(ram_ss >= ram_target)
+    hba_threshold = 1.0
+    disk_threshold = 0.95
+    cpu_threshold = 0.90
+    ram_threshold = 0.90
+
+    hba_ss_bool = bool(hba_ss >= int(hba_target*hba_threshold))
+    disk_ss_bool = bool(disk_ss >= int(disk_target*disk_threshold))
+    cpu_ss_bool = bool(cpu_ss >= int(cpu_target*cpu_threshold))
+    ram_ss_bool = bool(ram_ss >= int(ram_target*ram_threshold))
 
     ss_string = "Steady State:"
-    hba_string = " [HBA ({v}/{t})] ".format(v=hba_ss,t=hba_target)
-    disk_string = " [DISKS ({v}/{t})] ".format(v=disk_ss,t=disk_target)
-    cpu_string = " [CPU ({v}/{t})] ".format(v=cpu_ss,t=cpu_target)
-    ram_string = " [RAM ({v}/{t})] ".format(v=ram_ss,t=ram_target)
+    hba_string = " [HBA ({v}/{t}) {p}%] ".format(v=hba_ss,t=hba_target,p=(hba_ss/hba_target)*100)
+    disk_string = " [DISKS ({v}/{t}) {p}%] ".format(v=disk_ss,t=disk_target,p=(disk_ss/disk_target)*100)
+    cpu_string = " [CPU ({v}/{t}) {p}%] ".format(v=cpu_ss,t=cpu_target,p=(cpu_ss/cpu_target)*100)
+    ram_string = " [RAM ({v}/{t}) {p}%] ".format(v=ram_ss,t=ram_target,p=(ram_ss/ram_target)*100)
 
     hba_color = 1 if hba_ss_bool else 0
     disk_color = 1 if disk_ss_bool else 0
