@@ -114,6 +114,7 @@ def get_zfs_info():
 
 
 def main():
+    print("Gathering information for a bug report..")
     check_root()
     
     report = {
@@ -132,6 +133,8 @@ def main():
         report_file_name = "bugreport_{r}.json".format(r=report["server_info.json"]["Serial"])
     with open(report_file_name, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=4)
+    
+    print(f"Bug report saved as '{report_file_name}'.")
 
 
 if __name__ == "__main__":
