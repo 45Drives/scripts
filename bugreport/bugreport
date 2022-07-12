@@ -80,18 +80,21 @@ def get_server_info_content():
     else:
         return {}
 
-def get_std_out(command):
+def get_std_out_and_err(command):
     try:
         command_result = subprocess.Popen(
-            shlex.split(command),stdout=subprocess.PIPE,universal_newlines=True)
+            shlex.split(command),stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
     except:
         print(f"Error executing \"{command}\"")
-        return [f"Error executing \"{command}\""]
+        return {"stdout":[f"Error executing \"{command}\""],"stderr":[f"Error executing \"{command}\""]}
 
-    output_list = []
+    out_list = []
+    err_list = []
     for line in command_result.stdout:
-        output_list.append(line)
-    return output_list
+        out_list.append(line)
+    for line in command_result.stderr:
+        err_list.append(line)
+    return {"command":command,"stdout":out_list,"stderr":err_list,"rv":command_result.returncode}
 
 def get_zfs_info():
     zfs_info = {
@@ -108,10 +111,10 @@ def get_zfs_info():
     if not zfs_info["zfs_installed"]:
         return zfs_info
 
-    zfs_info["zfs_list"] = get_std_out("zfs list")
-    zfs_info["zpool_list"] = get_std_out("zpool list")
-    zfs_info["zpool_status"] = get_std_out("zpool status")
-    zfs_info["zpool_iostat"] = get_std_out("zpool iostat -v")
+    zfs_info["zfs_list"] = get_std_out_and_err("zfs list")
+    zfs_info["zpool_list"] = get_std_out_and_err("zpool list")
+    zfs_info["zpool_status"] = get_std_out_and_err("zpool status")
+    zfs_info["zpool_iostat"] = get_std_out_and_err("zpool iostat -v")
     return zfs_info
 
 def get_lsdev_info():
