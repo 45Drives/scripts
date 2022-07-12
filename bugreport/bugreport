@@ -4,6 +4,7 @@ import sys
 import subprocess
 import re
 import json
+import shlex
 
 def check_root():
     root_test =	subprocess.run(["ls","/root"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode
@@ -77,6 +78,41 @@ def get_server_info_content():
             json_str = f.read()
     return json.loads(json_str)
 
+def get_std_out(command):
+    try:
+        command_result = subprocess.Popen(
+            shlex.split(command),stdout=subprocess.PIPE,universal_newlines=True)
+    except:
+        print(f"Error executing \"{command}\"")
+        return [f"Error executing \"{command}\""]
+
+    output_list = []
+    for line in command_result.stdout:
+        output_list.append(line)
+    return output_list
+
+def get_zfs_info():
+    zfs_info = {
+        "zfs_installed":False
+    }
+    try:
+        command_result = subprocess.run(
+            ["command -v zfs"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True).returncode
+    except:
+        zfs_info["zfs_installed"] = False
+        return zfs_info
+    zfs_info["zfs_installed"] = (command_result == 0)
+
+    if not zfs_info["zfs_installed"]:
+        return zfs_info
+
+    zfs_info["zfs_list"] = get_std_out("zfs list")
+    zfs_info["zpool_list"] = get_std_out("zpool list")
+    zfs_info["zpool_status"] = get_std_out("zpool status")
+    zfs_info["zpool_iostat"] = get_std_out("zpool iostat -v")
+    return zfs_info
+
+
 def main():
     check_root()
     
@@ -89,6 +125,7 @@ def main():
     report["smart_ctl"] = get_smartctl_info_using_alias(report["vdev_id.conf"],report["/dev/disk/by-path/"])
     report["ipmitool_fru"] = get_ipmitool_fru()
     report["server_info.json"] = get_server_info_content()
+    report["zfs"] = get_zfs_info()
 
     report_file_name = "bugreport.json"
     if "Serial" in report["server_info.json"].keys():
