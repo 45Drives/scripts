@@ -157,6 +157,30 @@ def main():
     report["lspci"] = get_std_out_and_err('lspci -d 1000: -v -i "/opt/45drives/tools/pci.ids"')
     report["dmidecode"] = get_std_out_and_err('dmidecode')
     report["lsblk"] = get_std_out_and_err('lsblk')
+    report["45drives-system"] = {
+        "cpu_info": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/cpu_info'),
+        "ipmi": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ipmi'),
+        "motherboard": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ipmi'),
+        "pci": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/pci'),
+        "network": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/network'),
+        "ram": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ram'),
+        "sata": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/sata'),
+        "server_info": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/server_info'),
+        "system": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/system'),
+    }
+    report["45drives-disks"] = {
+        "disk_info": get_std_out_and_err('/usr/share/cockpit/45drives-disks/scripts/disk_info'),
+        "server_info": get_std_out_and_err('/usr/share/cockpit/45drives-disks/scripts/server_info'),
+        "zfs_info": get_std_out_and_err('/usr/share/cockpit/45drives-disks/scripts/zfs_info'),
+    }
+    report["45drives-motherboard"] = {
+        "motherboard": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/motherboard'),
+        "pci": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/pci'),
+        "ram": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/ram'),
+        "sata": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/sata'),
+        "network": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/network')
+    }
+
 
     report_file_name = "bugreport.json"
     if "Serial" in report["server_info.json"].keys():
