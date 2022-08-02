@@ -154,6 +154,9 @@ def main():
     report["server_info.json"] = get_server_info_content()
     report["zfs"] = get_zfs_info()
     report["lsdev"] = get_lsdev_info()
+    report["lspci"] = get_std_out_and_err('lspci -d 1000: -v -i "/opt/45drives/tools/pci.ids"')
+    report["dmidecode"] = get_std_out_and_err('dmidecode')
+    report["lsblk"] = get_std_out_and_err('lsblk')
 
     report_file_name = "bugreport.json"
     if "Serial" in report["server_info.json"].keys():
