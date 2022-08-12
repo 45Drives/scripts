@@ -122,7 +122,7 @@ def extract_gpt_header_info(header: bytearray):
         )
     )
     return {
-        'signature': raw_header.signature.decode('ascii'),
+        'signature': raw_header.signature.decode('ascii', errors='backslashreplace'),
         'checksum': check_header_chksum(header),
         'lba_indices': {
             'this_gpt_header': raw_header.current_lba,
@@ -175,7 +175,7 @@ def extract_gpt_entry(entry_raw: bytearray):
         'first_lba': raw_fields.first_lba,
         'last_lba': raw_fields.last_lba,
         'attributes': extract_gpt_entry_attributes(raw_fields.attribute_flags),
-        'name': raw_fields.name.decode('utf-16').replace('\u0000', '')
+        'name': raw_fields.name.decode('utf-16', errors='backslashreplace').replace('\u0000', '')
     }
 
 
