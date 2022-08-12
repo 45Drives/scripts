@@ -25,10 +25,18 @@ import zlib
 import struct
 import json
 import zipfile
+import math
 from pathlib import Path
 from collections import namedtuple
 
+# constants
 LBA = 512
+ZFS_LABEL_LEN = 256 * 1024
+ZFS_P9_LEN = 8 * 1024 * 1024  # assuming always 8M for part9
+MBR_LEN = 1 * LBA
+GPT_HEADER_LEN = 1 * LBA
+GPT_TABLE_LEN = 32 * LBA
+GPT_LEN = GPT_HEADER_LEN + GPT_TABLE_LEN
 
 
 def bytearray2hex(raw: bytearray, join_with: str = '', fmt: str = '02X') -> str:
@@ -61,6 +69,11 @@ def decode_guid(raw: bytearray) -> str:
 
 def partitioned(raw: bytearray, size: int):
     return [raw[i:i + size] for i in range(0, len(raw), size)]
+
+
+def blockdev_size(path: str) -> int:
+    with open(path, 'rb') as f:
+        return f.seek(0, os.SEEK_END) or f.tell()
 
 
 def check_chksum(section: bytearray, chksum: int):
@@ -200,18 +213,18 @@ def extract_gpt_info(header_raw: bytearray, entries_raw: bytearray):
 
 
 def get_gpt(dev_path: str):
-    primary_gpt_raw = bytearray(33 * LBA)
-    secondary_gpt_raw = bytearray(33 * LBA)
+    primary_gpt_raw = bytearray(GPT_LEN)
+    secondary_gpt_raw = bytearray(GPT_LEN)
     with open(dev_path, 'rb') as dev_file:
-        dev_file.seek(1 * LBA)
+        dev_file.seek(MBR_LEN)
         dev_file.readinto(primary_gpt_raw)
         primary_gpt = extract_gpt_info(
-            primary_gpt_raw[0:LBA], primary_gpt_raw[LBA:])
+            primary_gpt_raw[0:GPT_HEADER_LEN], primary_gpt_raw[GPT_HEADER_LEN:])
         assumed_secondary_gpt_entries_offset = dev_file.seek(
-            -1 * len(secondary_gpt_raw), os.SEEK_END)
+            -1 * GPT_LEN, os.SEEK_END)
         dev_file.readinto(secondary_gpt_raw)
         secondary_gpt = extract_gpt_info(
-            secondary_gpt_raw[-LBA:], secondary_gpt_raw[:-LBA])
+            secondary_gpt_raw[-GPT_HEADER_LEN:], secondary_gpt_raw[:-GPT_HEADER_LEN])
         secondary_gpt["header"]["lba_indices"]["meta"] = {
             'secondary_gpt_entries_after_last_partition_lba': assumed_secondary_gpt_entries_offset == (
                 primary_gpt["header"]["lba_indices"]["last_partition"] + 1) * LBA
@@ -247,44 +260,67 @@ def rip_images(dev_path: str, archive: zipfile.ZipFile):
         archive.writestr('LBA-33_LBA-0_GPT2.img', dev_file.read())
 
 
-def rip_zfs(dev_path: str, archive: zipfile.ZipFile, gpt_info: dict, use_secondary: bool):
-    gpt = 'secondary' if use_secondary else 'primary'
-    ZFS_LABEL_LEN = 256 * 1024
+def guess_zfs_offsets(dev_path: str):
+    print(
+        f'Warning: guessing ZFS partition locations for {dev_path}', file=sys.stderr)
+    # ASSUMED_P9_OFFSET_LBA = 18096
+    ALIGN = 1024 * 1024 # 1M
+    zfs_data_start = math.ceil((MBR_LEN + GPT_LEN) / ALIGN) * ALIGN
+    zfs_p9_start = math.floor((blockdev_size(dev_path) - GPT_LEN - ZFS_P9_LEN) / ALIGN) * ALIGN
+    zfs_p9_end = zfs_p9_start + ZFS_P9_LEN
+    zfs_data_end = zfs_p9_start
+    print('data_start:', zfs_data_start, file=sys.stderr)
+    print('data_end:', zfs_data_end, file=sys.stderr)
+    print('p9_start:', zfs_p9_start, file=sys.stderr)
+    print('p9_end:', zfs_p9_end, file=sys.stderr)
+    return zfs_data_start, zfs_data_end, zfs_p9_start, zfs_p9_end
+
+
+def rip_zfs(dev_path: str, archive: zipfile.ZipFile, gpt_info: dict):
+    gpt_entries = None
+    zfs_data_start = 0
+    zfs_data_end = 0
+    zfs_p9_start = 0
+    zfs_p9_end = 0
+
+    if gpt_info['primary']['entries']['checksum']['valid']:
+        gpt_entries = gpt_info['primary']['entries']
+    elif gpt_info['secondary']['entries']['checksum']['valid']:
+        gpt_entries = gpt_info['secondary']['entries']
+
+    if gpt_entries:
+        try:
+            zfs_data_start = gpt_entries['p1']['first_lba'] * LBA
+            zfs_data_end = (gpt_entries['p1']['last_lba'] + 1) * LBA
+            zfs_p9_start = gpt_entries['p9']['first_lba'] * LBA
+            zfs_p9_end = (gpt_entries['p9']['last_lba'] + 1) * LBA
+        except Exception as e:
+            print('Warning: failed to get ZFS partition locations from GPT: ', str(
+                e), ' (Partition entries 1 or 9 might be missing)', file=sys.stderr)
+            zfs_data_start, zfs_data_end, zfs_p9_start, zfs_p9_end = guess_zfs_offsets(
+                dev_path)
+    else:
+        print('Warning: failed to get ZFS partition locations from GPT: GPT entry checksums failed', file=sys.stderr)
+        zfs_data_start, zfs_data_end, zfs_p9_start, zfs_p9_end = guess_zfs_offsets(
+            dev_path)
+
     with open(dev_path, 'rb') as dev_file:
         # part1 (ZFS)
         # whole labels
-        zfs_data_start = gpt_info[gpt]['entries']['p1']['first_lba'] * LBA
-        zfs_data_end = (gpt_info[gpt]['entries']
-                        ['p1']['last_lba'] + 1) * LBA  # exclusive
         dev_file.seek(zfs_data_start)
         archive.writestr('ZFS_vdev_label_0.img', dev_file.read(ZFS_LABEL_LEN))
         archive.writestr('ZFS_vdev_label_1.img', dev_file.read(ZFS_LABEL_LEN))
         dev_file.seek(zfs_data_end - (2 * ZFS_LABEL_LEN))
-        dev_file.seek(-2 * ZFS_LABEL_LEN, os.SEEK_CUR)
         archive.writestr('ZFS_vdev_label_2.img', dev_file.read(ZFS_LABEL_LEN))
         archive.writestr('ZFS_vdev_label_3.img', dev_file.read(ZFS_LABEL_LEN))
-        # nv_pairs
-        NVLIST_OFFSET = 16 * 1024
-        NVLIST_LENGTH = (128 - 16) * 1024
-        dev_file.seek(zfs_data_start + NVLIST_OFFSET)
-        archive.writestr('ZFS_vdev_label_0_nvlist.img', dev_file.read(NVLIST_LENGTH))
-        dev_file.seek(ZFS_LABEL_LEN - NVLIST_LENGTH, os.SEEK_CUR)
-        archive.writestr('ZFS_vdev_label_1_nvlist.img', dev_file.read(NVLIST_LENGTH))
-        dev_file.seek(zfs_data_end - (2 * ZFS_LABEL_LEN) + NVLIST_OFFSET)
-        archive.writestr('ZFS_vdev_label_2_nvlist.img', dev_file.read(NVLIST_LENGTH))
-        dev_file.seek(ZFS_LABEL_LEN - NVLIST_LENGTH, os.SEEK_CUR)
-        archive.writestr('ZFS_vdev_label_3_nvlist.img', dev_file.read(NVLIST_LENGTH))
         # part9 (Solaris Reserved 1, 8M usually)
-        PART9_START = gpt_info[gpt]['entries']['p9']['first_lba'] * LBA
-        PART9_END = (gpt_info[gpt]['entries']
-                        ['p9']['last_lba'] + 1) * LBA  # exclusive
-        PART9_LEN = PART9_END - PART9_START
-        dev_file.seek(PART9_START)
-        archive.writestr('ZFS_solaris_reserved.img', dev_file.read(PART9_LEN))
+        dev_file.seek(zfs_p9_start)
+        archive.writestr('ZFS_p9.img', dev_file.read(ZFS_P9_LEN))
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Dump block device GPT and ZFS label info')
+    parser = argparse.ArgumentParser(
+        description='Dump block device GPT and ZFS label info')
     parser.add_argument('input_device', metavar='BLOCK_DEVICE',
                         type=str, help='Path to block device to dump')
     parser.add_argument('out_path', metavar='OUTPUT[.zip]',
@@ -293,7 +329,6 @@ def main():
                         help='Silence output, for when you only want the zip')
     parser.add_argument('-z', '--zfs', action='store_true',
                         help='Try to rip ZFS labels into archive')
-    parser.add_argument('-s', '--secondary', action='store_true', help='Use secondary GPT table while trying to rip ZFS images')
 
     args = parser.parse_args()
 
@@ -320,7 +355,7 @@ def main():
             archive.writestr('gpt_info.json', gpt_info_json)
             rip_images(args.input_device, archive)
             if args.zfs:
-                rip_zfs(args.input_device, archive, gpt_info, args.secondary)
+                rip_zfs(args.input_device, archive, gpt_info)
 
 
 if __name__ == "__main__":
