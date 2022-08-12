@@ -16,6 +16,26 @@ options:
   -s, --secondary  Use secondary GPT table while trying to rip ZFS images
 ```
 
+# gpt1_from_gpt2.py
+If the primary GPT is corrupt but the secondary GPT is fine, use this to generate a primary GPT image.  
+**REMEMBER `seek=1` WHEN WRITING TO DISK TO SKIP MBR**
+```
+usage: gpt1_from_gpt2.py [-h] BLOCK_DEVICE
+
+Generate primary GPT from intact secondary GPT
+
+positional arguments:
+  BLOCK_DEVICE  Path to block device to dump
+
+options:
+  -h, --help    show this help message and exit
+```
+## Example
+```bash
+./gpt1_from_gpt2.py /dev/sdi > gpt.img
+# type carefully:
+dd if=gpt.img bs=512 seek=1 count=33 of=/dev/sdi
+```
 # Extracting Partition Info from ZFS Physcial vDev
 Costumer has missing partitions on four drives in a raidz2 pool. We need to see if partition data is still there but only the GPT table is missing.
 ## GUID Partition Table (GPT) Info
