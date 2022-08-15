@@ -104,6 +104,24 @@ GPT header size: 0x200
 GPT table start: 0x400
 GPT table entry size: 0x80
 
+## ZFS vDev
+|    Offset |  Length | Length (hex) | Contents              |
+| --------: | ------: | -----------: | :-------------------- |
+|  0x000000 |    256K |     0x040000 | Label 0               |
+|  0x040000 |    256K |     0x040000 | Label 1               |
+|  0x080000 | 57,344K |     0x380000 | Reserved (boot block) |
+|  0x400000 |       - |            - | Allocatable space     |
+| -0x080000 |    256K |     0x040000 | Label 2               |
+| -0x040000 |    256K |     0x040000 | Label 3               |
+
+### ZFS vDev Label
+|  Offset | Length | Length (hex) | Contents                                       |
+| ------: | -----: | -----------: | :--------------------------------------------- |
+| 0x00000 |     8K |      0x02000 | Blank                                          |
+| 0x02000 |     8K |      0x02000 | Reserved (Boot header)                         |
+| 0x04000 |   112K |      0x1C000 | name-value list (XDR) desc. vdev relationships |
+| 0x20000 |   128K |      0x20000 | Uberblock array                                |
+
 ## Commands
 ### Dump LBA Sector(s)
 ```bash
