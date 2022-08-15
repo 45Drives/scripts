@@ -78,28 +78,49 @@ def gpt1_header_from_gpt2_header(header: bytearray) -> bytearray:
 
 def get_gpt2(device_path: str) -> bytearray:
     gpt = bytearray(GPT_LEN)
-    if not Path(device_path).is_block_device() or Path(device_path).is_file():
+    if not (Path(device_path).is_block_device() or Path(device_path).is_file()):
         print(
             f'Error: {device_path} is not a block device or regular file!', file=sys.stderr)
         sys.exit(1)
     with open(device_path, 'rb') as dev_file:
-        dev_file.seek(-1 * GPT_LEN, os.SEEK_END)
+        dev_file.seek(-GPT_LEN, os.SEEK_END)
         dev_file.readinto(gpt)
     return gpt
 
 
+def mbr_chs_addr(cylinder: int, head: int, sector: int) -> bytearray:
+    return bytearray([head & 0xFF, ((cylinder >> 2) & 0xC0) | (sector & 0x3F), cylinder & 0xFF])
+
+
+def gpt_mbr_entry() -> bytearray:
+    status = 0x0
+    first_chs = mbr_chs_addr(0x3FF, 0xFF, 0xFF)  # max
+    part_type = 0xEE  # GPT protective MBR
+    last_chs = mbr_chs_addr(0x3FF, 0xFF, 0xFF)  # max
+    first_lba = 0x1  # start of GPT header
+    num_sectors = 0xFFFFFFFF  # max
+    return struct.pack('<B3sB3sLL', status, first_chs, part_type, last_chs, first_lba, num_sectors)
+
+
+def gen_mbr() -> bytearray:
+    mbr = bytearray(LBA)
+    mbr[0x1BE:0x1CE] = gpt_mbr_entry()
+    mbr[-2:] = [0x55, 0xAA]  # boot signature
+    return mbr
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate primary GPT from intact secondary GPT')
+        description='Generate MBR + primary GPT from intact secondary GPT')
     parser.add_argument('input_device', metavar='BLOCK_DEVICE',
-                        type=str, help='Path to block device to dump')
+                        type=str, help='Path to block device containing secondary GPT')
     args = parser.parse_args()
     gpt1 = bytearray(GPT_LEN)
     gpt2 = get_gpt2(args.input_device)
     gpt1[0:GPT_HEADER_LEN] = gpt1_header_from_gpt2_header(
-        gpt2[-1 * GPT_HEADER_LEN:])
-    gpt1[GPT_HEADER_LEN:] = gpt2[0:-1 * GPT_HEADER_LEN]
-    sys.stdout.buffer.write(gpt1)
+        gpt2[-GPT_HEADER_LEN:])
+    gpt1[GPT_HEADER_LEN:] = gpt2[0:-GPT_HEADER_LEN]
+    sys.stdout.buffer.write(gen_mbr() + gpt1)
 
 
 if __name__ == "__main__":
