@@ -17,6 +17,7 @@ options:
 ```
 
 # gpt1_from_gpt2.py
+**It may be preferrable to use `gdisk` to repair a missing/corrupt GPT when the secondary is fine**
 If the primary GPT is corrupt but the secondary GPT is fine, use this to generate a primary GPT image.  
 **REMEMBER `seek=1` WHEN WRITING TO DISK TO SKIP MBR**
 ```
