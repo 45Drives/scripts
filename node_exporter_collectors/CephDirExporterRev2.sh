@@ -6,11 +6,22 @@
 
 #Usage:
 #This script will output a prometheus valid string into a file, in order to do so
-#the target CephFS directory for monitoring, as well as the enabled textcollector directory
+#the target cephfs directory must be passed as an argument, and the node exporter dir will be changed if it is not the default. 
 #this script has no scheduling ability, it is advised to run it through cronjob, or similar tools.
 
 #User defined variables
-CephFSDir="/mnt/example/share
+CephFSDir="$1"
+
+#error handling if the input isnt given/ dir doesnt exist
+if [ -z $CephFSDir ]; then
+    echo "Undefined directory"
+    exit 1
+fi
+
+if [ ! -d "$CephFSDir" ]; then
+    echo "directory doesnt exist"
+    exit 1
+fi
 NodeExporterDir="/var/lib/node_exporter"
 
 #Processed directory name
@@ -23,5 +34,3 @@ PromData="${PromLine} ${CephRbyte}"
 
 #echo into file/create new file if necessary
 echo $PromData > "${NodeExporterDir}/${CephFSDirName}.prom"
-
-
