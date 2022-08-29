@@ -1,0 +1,51 @@
+#!/bin/bash
+
+ceph_health=$(ceph -s 2>/dev/null | awk '$1 ~ /(noout,norebalance,norecover)/ {print $0}')
+
+ceph2=$(echo $ceph_health)
+
+OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
+
+if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
+
+        package=$(rpm -qa | grep ceph-common)
+
+                if [[ $package != *"ceph-common"* ]]; then
+                        echo ceph-common not installed
+                        exit 1
+                fi
+
+
+elif [ $OS == 'NAME="Ubuntu"' ]; then
+
+        package=$(apt list --installed 2>/dev/null | grep -i ceph-common)
+
+                if [[ $package != *"ceph-common"* ]]; then
+                        echo ceph-common not installed
+                        exit 1
+                fi
+else
+
+        echo "OS is not Ubuntu or Rocky Linux"
+        exit 1
+
+fi
+
+ceph -s >/dev/null 2>&1
+if [ $? != 0 ]; then
+        echo you do not have permission to enable this
+        exit 1
+fi
+
+if [[ "$ceph_health" != *"noout,norebalance,norecover flag(s) set"* ]]; then
+        ceph osd set noout
+        ceph osd set norebalance
+        ceph osd set norecover
+        echo -e "ceph maintenance options: \e[1;35mnoout,norebalance,norecover\e[0m \e[1;32menabled\e[0m"
+
+else
+        ceph osd unset noout
+        ceph osd unset norebalance
+        ceph osd unset norecover
+        echo -e "ceph maintenance options: \e[1;35mnoout,norebalance,norecover\e[0m \e[1;31mdisabled\e[0m"
+fi
