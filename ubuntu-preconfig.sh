@@ -284,7 +284,7 @@ add_cockpit() {
 		exit $res
 	fi
 	
-	apt install -y cockpit cockpit-zfs-manager cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-machines cockpit-sosreport realmd tuned udisks2-lvm2 zfs-dkms samba winbind nfs-kernel-server nfs-client 45drives-tools
+	apt install -y cockpit cockpit-zfs-manager cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-machines cockpit-sosreport realmd tuned udisks2-lvm2 zfs-dkms samba winbind nfs-kernel-server nfs-client 45drives-tools
 	
     res=$?
 	
