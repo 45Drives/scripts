@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# written by Joshua Boudreau <jboudreau@45drives.com> 2022
+
 import os
 import re
 import argparse
