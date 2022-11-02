@@ -7,27 +7,28 @@ import re
 import argparse
 import re
 
-taken_paths = []
 
-def get_unique_name(path):
+def get_unique_name(parent_path, name, taken_paths):
     i = 0
-    new_path = path
-    last_dot_ind = path.rfind('.')
+    new_path = os.path.join(parent_path, name)
+    extension_dot_ind = name.find('.')
     while new_path in taken_paths or os.path.exists(new_path):
         i += 1
-        new_path = path[0:last_dot_ind] + f"({i})" + path[last_dot_ind:] if last_dot_ind != -1 else path + f"({i})"
+        new_name = name[0:extension_dot_ind] + f"({i})" + name[extension_dot_ind:] if extension_dot_ind != -1 else name + f"({i})"
+        new_path = os.path.join(parent_path, new_name)
     taken_paths.append(new_path)
     return new_path
 
 
 def rename_mangled(paths, dry_run):
+    taken_paths = []
     for path in paths:
         for root, dirs, files in os.walk(path, topdown=False):
             for name in [*dirs, *files]:
-                new_name = re.sub('[^A-Za-z0-9 \n_\-,.\(\)]', '_', name)
+                new_name = re.sub('[^A-Za-z0-9 _\-,.\(\)]', '_', name, flags=re.MULTILINE)
                 if new_name != name:
                     src = os.path.join(root, name)
-                    dst = get_unique_name(os.path.join(root, new_name))
+                    dst = get_unique_name(root, new_name, taken_paths)
                     print(src, ' -> ', dst)
                     if dry_run:
                         continue
