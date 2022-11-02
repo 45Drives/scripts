@@ -28,7 +28,8 @@ def legalize_name(string: str):
     windows_ill = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
     def printable(c): return ord(c) in range(0x20, 0x7F)
     def windows_allowed(c): return c not in windows_ill
-    string = string.replace(u'–', '-') # weird case of long dash instead of '-'
+    # weird case of long dash instead of '-'
+    string = string.replace(u'–', '-')
     return "".join(map(lambda c: c if printable(c) and windows_allowed(c) else '_', string))
 
 
@@ -41,7 +42,10 @@ def rename_mangled(paths, dry_run):
             dst = legalize_name(src)
             if dst != src:
                 dst = get_unique_name(root, dst, taken_paths)
-                print(os.path.join(root, src), ' -> ', os.path.join(root, dst))
+                print('in', f"'{root.encode('unicode_escape').decode('utf-8')}':")
+                print(f"'{src.encode('unicode_escape').decode('utf-8')}'", '->')
+                print(f"'{dst.encode('unicode_escape').decode('utf-8')}'")
+                print()
                 if dry_run:
                     continue
                 try:
