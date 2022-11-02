@@ -3,9 +3,8 @@
 # written by Joshua Boudreau <jboudreau@45drives.com> 2022
 
 import os
-import re
 import argparse
-import re
+import sys
 
 
 def get_unique_name(root, name, taken_paths):
@@ -33,11 +32,13 @@ def legalize_name(string: str):
     return "".join(map(lambda c: c if printable(c) and windows_allowed(c) else '_', string))
 
 
-def rename_mangled(paths, dry_run):
+def rename_mangled(paths, dry_run, recursive):
     taken_paths = []
+    change_count = 0
 
     def rename_entries(root, entries, rootfd):
         changes = []
+        nonlocal change_count
         for src in entries:
             dst = legalize_name(src)
             if dst != src:
@@ -46,6 +47,7 @@ def rename_mangled(paths, dry_run):
                 print(f"'{src.encode('unicode_escape').decode('utf-8')}'", '->')
                 print(f"'{dst.encode('unicode_escape').decode('utf-8')}'")
                 print()
+                change_count += 1
                 if dry_run:
                     continue
                 try:
@@ -57,22 +59,35 @@ def rename_mangled(paths, dry_run):
             entries.remove(src)
             entries.append(dst)
     for path in paths:
-        for root, dirs, files, rootfd in os.fwalk(path, topdown=True):
-            if '.zfs' in dirs:
-                dirs.remove('.zfs')
-            rename_entries(root, dirs, rootfd)
-            rename_entries(root, files, rootfd)
+        if os.path.isdir(path) and recursive:
+            for root, dirs, files, rootfd in os.fwalk(path, topdown=True):
+                if '.zfs' in dirs:
+                    dirs.remove('.zfs')
+                rename_entries(root, dirs, rootfd)
+                rename_entries(root, files, rootfd)
+        if os.path.exists(path):
+            fullpath = os.path.realpath(path)
+            root = os.path.dirname(fullpath)
+            entries = [os.path.basename(fullpath)]
+            rootfd = os.open(root, os.O_RDONLY)
+            rename_entries(root, entries, rootfd)
+    return change_count
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('roots', type=str, nargs='+', metavar='ROOT_PATH')
-    # parser.add_argument('-d', '--dry-run', action='store_true', default=False)
+    parser = argparse.ArgumentParser(
+        description='Rename files and directories to play nice with Windows')
+    parser.add_argument('roots', type=str, nargs='+', metavar='PATH',
+                        help='Path(s) to rename')
+    parser.add_argument('-r', '--recursive', action='store_true', default=False, help='Recurse into directories')
     args = parser.parse_args()
-    rename_mangled(args.roots, True)  # dry run
-    response = input("is this okay? [y/N]: ")
+    mangled_count = rename_mangled(args.roots, True, args.recursive)  # dry run
+    print(f"Found {mangled_count} invalid paths")
+    if mangled_count == 0:
+        sys.exit()
+    response = input("Are the above changes okay? [y/N]: ")
     if response.upper() in ['Y', 'YES']:
-        rename_mangled(args.roots, False)  # really rename
+        rename_mangled(args.roots, False, args.recursive)  # really rename
 
 
 if __name__ == '__main__':
