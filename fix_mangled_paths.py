@@ -10,23 +10,34 @@ import re
 
 def get_unique_name(root, name, taken_paths):
     i = 0
-    extension_dot_ind = name.find('.')
+    ext_ind = name.find('.')
     new_name = name
     new_path = os.path.join(root, new_name)
     while new_path in taken_paths or os.path.exists(new_path):
         i += 1
-        new_name = name[0:extension_dot_ind] + f"({i})" + name[extension_dot_ind:] if extension_dot_ind != -1 else name + f"({i})"
+        new_name = (
+            name[0:ext_ind] + f"({i})" + name[ext_ind:]
+            if ext_ind != -1 else name + f"({i})"
+        )
         new_path = os.path.join(root, new_name)
     taken_paths.append(new_path)
     return new_name
 
 
+def legalize_name(string: str):
+    windows_ill = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
+    def printable(c): return ord(c) in range(0x20, 0x7F)
+    def windows_allowed(c): return c not in windows_ill
+    return "".join(map(lambda c: c if printable(c) and windows_allowed(c) else '_', string))
+
+
 def rename_mangled(paths, dry_run):
     taken_paths = []
+
     def rename_entries(root, entries, rootfd):
         changes = []
         for src in entries:
-            dst = re.sub('[^A-Za-z0-9 _\-,.\(\)\'+!@]', '_', src, flags=re.MULTILINE)
+            dst = legalize_name(src)
             if dst != src:
                 dst = get_unique_name(root, dst, taken_paths)
                 print(os.path.join(root, src), ' -> ', os.path.join(root, dst))
@@ -53,10 +64,10 @@ def main():
     parser.add_argument('roots', type=str, nargs='+', metavar='ROOT_PATH')
     # parser.add_argument('-d', '--dry-run', action='store_true', default=False)
     args = parser.parse_args()
-    rename_mangled(args.roots, True) # dry run
+    rename_mangled(args.roots, True)  # dry run
     response = input("is this okay? [y/N]: ")
     if response.upper() in ['Y', 'YES']:
-        rename_mangled(args.roots, False) # really rename
+        rename_mangled(args.roots, False)  # really rename
 
 
 if __name__ == '__main__':
