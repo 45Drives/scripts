@@ -28,6 +28,7 @@ def legalize_name(string: str):
     windows_ill = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
     def printable(c): return ord(c) in range(0x20, 0x7F)
     def windows_allowed(c): return c not in windows_ill
+    string = string.replace(u'–', '-') # weird case of long dash instead of '-'
     return "".join(map(lambda c: c if printable(c) and windows_allowed(c) else '_', string))
 
 
