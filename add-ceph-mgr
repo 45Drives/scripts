@@ -1,0 +1,34 @@
+#!/bin/bash
+
+OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
+
+if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
+
+        dnf install ceph-mgr ceph-mgr-modules-core ceph-mgr-dashboard
+
+elif [ $OS == 'NAME="Ubuntu"' ]; then
+
+        apt install ceph-mgr ceph-mgr-modules-core ceph-mgr-dashboard
+
+else
+
+        echo "OS is not Ubuntu or Rocky Linux"
+        exit
+
+fi
+
+mkdir /var/lib/ceph/mgr/ceph-$(hostname -s)
+
+chown ceph:ceph /var/lib/ceph/mgr/ceph-$(hostname -s)
+
+ceph auth get-or-create mgr.$(hostname -s) mon 'allow profile mgr' osd 'allow *' mds 'allow *'
+
+ceph auth get mgr.$(hostname -s) > /var/lib/ceph/mgr/ceph-$(hostname -s)/keyring
+
+chown ceph:ceph /var/lib/ceph/mgr/ceph-$(hostname -s)/keyring
+
+ceph-mgr -i $(hostname -s)
+
+ceph -s
+
+echo -e "\e[1;31mmgr-$(hostname -s)\e[0m has been \e[1;32madded\e[0m"

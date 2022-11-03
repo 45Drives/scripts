@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+
+import subprocess
+import re
+import json
+import os.path
+import os
+from datetime import datetime
+import sys
+
+def getDmidecodePCI(server):
+    try:
+        dmidecode_result = subprocess.Popen(
+            ["dmidecode", "-t", "9"], stdout=subprocess.PIPE, universal_newlines=True).stdout.read()
+    except:
+        print("ERROR: dmidecode not installed")
+        exit(1)
+    pci_slots = []
+    rx_pci=re.compile(r"^Handle.*\n(?:.|\n)+?^.*(?:Designation:\s+).*(?:PCIE|SLOT)(.).*(?:.|\n)+?^.*Current Usage:\s+(In Use|Available).*(?:.|\n)+?^.*Bus Address:\s+(\S+).*",re.MULTILINE)
+    for match in rx_pci.finditer(dmidecode_result):
+        pci_slots.append({"PCI SLOT":match.group(1),"Current Usage":match.group(2),"Bus Address":match.group(3)})
+
+
+    if server["Motherboard"]["Product Name"] == "EPC621D8A":
+    # the bus addresses from dmidecode may be invalid. Use lookup table and use a translated address.
+        BA_EPC612D8A = {
+            "ff00:16:02.0":"0000:1c:00.0", #PCIE2
+            "ff00:64:00.0":"0000:65:00.0", #PCIE4
+            "ff00:64:02.0":"0000:66:00.0", #PCIE3
+            "ff00:b2:00.0":"0000:b3:00.0", #PCIE6
+            "ff00:b2:02.0":"0000:b4:00.0" #PCIE5
+            }
+        for slot in pci_slots:
+            if "Bus Address" in slot.keys() and slot["Bus Address"] in BA_EPC612D8A.keys():
+                slot["Bus Address"] = BA_EPC612D8A[slot["Bus Address"]]
+    return pci_slots
+
+
+def main():
+    server = {
+        "Motherboard":"?",
+        "PCI":"?"
+    }
+
+    server["Motherboard"] = motherboard()
+    server["PCI"] = getDmidecodePCI(server)
+    print(json.dumps(server,indent=4))
+    exit(0)
+
+
+def motherboard():
+    mobo_dict = {
+    "Manufacturer":"?",
+    "Product Name":"?",
+    "Serial Number":"?"
+    }
+
+    mobo = []
+
+    try:
+        dmi_result = subprocess.Popen(["dmidecode","-t","2"],stdout=subprocess.PIPE,universal_newlines=True).stdout
+    except:
+        print("ERROR: dmidecode is not installed")
+        exit(1)
+    for line in dmi_result:
+        for field in mobo_dict.keys():
+            regex = re.search("^\s({fld}):\s+(.*)".format(fld=field),line)
+            if regex != None:
+                    mobo_dict[regex.group(1)] = regex.group(2)
+
+    try_fru = False
+    for key in mobo_dict.keys():
+        if mobo_dict[key] in ["?",""]:
+            try_fru = True
+
+    if try_fru:
+        try:
+            fru_result = subprocess.Popen(["ipmitool","fru"],stdout=subprocess.PIPE,universal_newlines=True).stdout
+        except:
+            print("ERROR: ipmitool fru failed to return result.")
+        for line in fru_result:
+            for field in ["Board Mfg", "Board Product", "Board Serial"]:
+                regex = re.search("^\s({fld})\s+:\s+(.*)".format(fld=field),line)
+                if regex != None:
+                    if regex.group(1) == "Board Mfg":
+                        mobo_dict["Manufacturer"] = regex.group(2)
+                    elif regex.group(1) == "Board Product":
+                        mobo_dict["Product Name"] = regex.group(2)
+                    elif regex.group(1) == "Board Serial":
+                        mobo_dict["Serial Number"] = regex.group(2)
+    
+    return mobo_dict
+
+if __name__ == "__main__":
+    main()

@@ -4,6 +4,9 @@ import os
 import csv
 from optparse import OptionParser
 import numpy as np
+import subprocess
+import shlex
+import json
 
 def input_csv_to_list(args):
     csv_list = []
@@ -27,6 +30,29 @@ def annot_max(x,y, ax=None):
             bbox=bbox_props, ha="right", va="top")
     ax.annotate(text, xy=(xmax, ymax), xytext=(0.94,0.96), **kw)
 
+def run_tmap():
+    # run tmap and append the time that the measurement started as well as the duration of the measurement
+    tmap = subprocess.Popen(
+        shlex.split("./tmap"), stdout=subprocess.PIPE, universal_newlines=True)
+    tmap_output = tmap.communicate()
+    tmap_json = json.loads(tmap_output[0])
+    return tmap_json
+
+def get_hba_string(tmap_result):
+    hba_str = ""
+    for hba in tmap_result["HBA"]:
+        hba_str += "{model}\n".format(model=hba["Model"])
+    return hba_str[:-1] if len(hba_str) else ""
+
+def get_disks_string(tmap_result,target_row):
+    disks_str = ""
+    for disk in tmap_result["DISKS"]:
+        if disk["id"][0] == target_row:
+            disks_str += "{id}".format(id=disk["id"].ljust(5))
+            truncate = "..." if (disk["model-family"] != "?" and len(disk["model-family"]) > 16) or (disk["model-family"] == "?" and len(disk["model-name"]) > 16) else ""
+            disks_str += ": {model}{tru}\n".format(model=disk["model-family"][:16] if disk["model-family"] != "?" else disk["model-name"][:16],tru=truncate)
+    return disks_str[:-1] if len(disks_str) else ""
+
 def main():
     parser = OptionParser()  # use optparse to handle command line arguments
     parser.add_option("-i", "--input", action="store", type="string",
@@ -41,6 +67,19 @@ def main():
         print("no input file provided.")
         exit(1)
 
+    tmap_result = run_tmap()
+
+    line_colors = {
+        "HBA (avg)": "blue",
+        "CPU (avg)": "red",
+        "CPU": "red",
+        "RAM (avg)": "green",
+        "HDD Row 1 (avg)": "olive",
+        "HDD Row 2 (avg)": "orange",
+        "HDD Row 3 (avg)": "aqua",
+        "HDD Row 4 (avg)": "magenta"
+    }
+
     fig, ax = plt.subplots(figsize=(10,8),sharex=True)
     input_list = input_csv_to_list(args)
     values = []
@@ -51,7 +90,7 @@ def main():
 
     time = values[0]
     for i in range(1,len(input_list)):
-        ax.plot(time,values[i], label = input_list[i][0])
+        ax.plot(time,values[i], label = input_list[i][0],color=line_colors[input_list[i][0]])
     
     annot_max(np.array(time),np.array(values[1]))
 
@@ -70,13 +109,44 @@ def main():
     plt.title(args.title)
     
     # show a legend on the plot
-    plt.legend()
+    plt.legend(bbox_to_anchor=(-0.1,1.0))
     
     plt.grid()
 
     # function to show the plot
     #plt.show()
-    fig.savefig(args.output)
+
+    
+    hba_string = get_hba_string(tmap_result)
+    disk_strings = {
+        "row1": get_disks_string(tmap_result,"1"),
+        "row2": get_disks_string(tmap_result,"2"),
+        "row3": get_disks_string(tmap_result,"3"),
+        "row4": get_disks_string(tmap_result,"4")
+    }
+
+    hba_props = dict(boxstyle='round', facecolor=line_colors["HBA (avg)"], alpha=0.4)
+    disk_props = {
+        "row1":dict(boxstyle="round",facecolor=line_colors["HDD Row 1 (avg)"],alpha=0.4),
+        "row2":dict(boxstyle="round",facecolor=line_colors["HDD Row 2 (avg)"],alpha=0.4),
+        "row3":dict(boxstyle="round",facecolor=line_colors["HDD Row 3 (avg)"],alpha=0.4),
+        "row4":dict(boxstyle="round",facecolor=line_colors["HDD Row 4 (avg)"],alpha=0.4)
+    }
+
+    disk_pos = {
+        "row1": {"x":0.92,"y":0.77},
+        "row2": {"x":1.12,"y":0.77},
+        "row3": {"x":0.92,"y":0.45},
+        "row4": {"x":1.12,"y":0.45}
+    }
+
+    for row in disk_strings.keys():
+        if len(disk_strings[row]) > 0:
+            fig.text(disk_pos[row]["x"],disk_pos[row]["y"],disk_strings[row],horizontalalignment="left",verticalalignment="top",bbox=disk_props[row])
+
+    fig.text(0.92,0.87,hba_string,horizontalalignment="left",verticalalignment="top",bbox=hba_props)
+    
+    fig.savefig(args.output, bbox_inches='tight')
 
 if __name__ == "__main__":
     main()

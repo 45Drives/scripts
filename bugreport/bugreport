@@ -4,6 +4,7 @@ import sys
 import subprocess
 import re
 import json
+import shlex
 
 def check_root():
     root_test =	subprocess.run(["ls","/root"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode
@@ -62,7 +63,7 @@ def get_ipmitool_fru():
             ["ipmitool","fru"],stdout=subprocess.PIPE,universal_newlines=True)
     except:
         print("Error executing \"ipmitool fru\"")
-        exit(1)	
+        return []
 
     ipmitool_fru_output = []
     for line in ipmitool_result.stdout:
@@ -75,9 +76,71 @@ def get_server_info_content():
     if os.path.exists(json_path):
         with open(json_path,"r") as f:
             json_str = f.read()
-    return json.loads(json_str)
+        return json.loads(json_str)
+    else:
+        return {}
+
+def get_std_out_and_err(command):
+    try:
+        command_result = subprocess.Popen(
+            shlex.split(command),stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
+    except:
+        print(f"Error executing \"{command}\"")
+        return {"stdout":[f"Error executing \"{command}\""],"stderr":[f"Error executing \"{command}\""]}
+
+    out_list = []
+    err_list = []
+    for line in command_result.stdout:
+        out_list.append(line)
+    for line in command_result.stderr:
+        err_list.append(line)
+    return {"command":command,"stdout":out_list,"stderr":err_list,"rv":command_result.returncode}
+
+def get_zfs_info():
+    zfs_info = {
+        "zfs_installed":False
+    }
+    try:
+        command_result = subprocess.run(
+            ["command -v zfs"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True).returncode
+    except:
+        zfs_info["zfs_installed"] = False
+        return zfs_info
+    zfs_info["zfs_installed"] = (command_result == 0)
+
+    if not zfs_info["zfs_installed"]:
+        return zfs_info
+
+    zfs_info["zfs_list"] = get_std_out_and_err("zfs list")
+    zfs_info["zpool_list"] = get_std_out_and_err("zpool list")
+    zfs_info["zpool_status"] = get_std_out_and_err("zpool status")
+    zfs_info["zpool_iostat"] = get_std_out_and_err("zpool iostat -v")
+    return zfs_info
+
+def get_lsdev_info():
+    command = "lsdev --json"
+    try:
+        command_result = subprocess.Popen(
+        shlex.split(command),stdout=subprocess.PIPE,universal_newlines=True)
+    except:
+        print(f"Error executing \"{command}\"")
+        return [f"Error executing \"{command}\""]
+
+    lsdev_output = {}
+    try:
+        lsdev_str = command_result.stdout.read()
+    except:
+        return lsdev_output
+    
+    try:
+        lsdev_output = json.loads(lsdev_str)
+    except:
+        return [lsdev_str]
+
+    return lsdev_output
 
 def main():
+    print("Gathering information for a bug report..")
     check_root()
     
     report = {
@@ -89,13 +152,43 @@ def main():
     report["smart_ctl"] = get_smartctl_info_using_alias(report["vdev_id.conf"],report["/dev/disk/by-path/"])
     report["ipmitool_fru"] = get_ipmitool_fru()
     report["server_info.json"] = get_server_info_content()
+    report["zfs"] = get_zfs_info()
+    report["lsdev"] = get_lsdev_info()
+    report["lspci"] = get_std_out_and_err('lspci -d 1000: -v -i "/opt/45drives/tools/pci.ids"')
+    report["dmidecode"] = get_std_out_and_err('dmidecode')
+    report["lsblk"] = get_std_out_and_err('lsblk')
+    report["45drives-system"] = {
+        "cpu_info": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/cpu_info'),
+        "ipmi": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ipmi'),
+        "motherboard": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ipmi'),
+        "pci": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/pci'),
+        "network": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/network'),
+        "ram": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ram'),
+        "sata": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/sata'),
+        "server_info": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/server_info'),
+        "system": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/system'),
+    }
+    report["45drives-disks"] = {
+        "disk_info": get_std_out_and_err('/usr/share/cockpit/45drives-disks/scripts/disk_info'),
+        "server_info": get_std_out_and_err('/usr/share/cockpit/45drives-disks/scripts/server_info'),
+        "zfs_info": get_std_out_and_err('/usr/share/cockpit/45drives-disks/scripts/zfs_info'),
+    }
+    report["45drives-motherboard"] = {
+        "motherboard": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/motherboard'),
+        "pci": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/pci'),
+        "ram": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/ram'),
+        "sata": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/sata'),
+        "network": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/network')
+    }
+
 
     report_file_name = "bugreport.json"
     if "Serial" in report["server_info.json"].keys():
         report_file_name = "bugreport_{r}.json".format(r=report["server_info.json"]["Serial"])
     with open(report_file_name, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=4)
-
+    
+    print(f"Bug report saved as '{report_file_name}'.")
 
 if __name__ == "__main__":
     main()
