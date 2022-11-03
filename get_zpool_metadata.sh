@@ -9,9 +9,9 @@ fi
 POOL_NAME=$1
 
 if zpool status $POOL_NAME &>/dev/null; then
-	echo "pool exists continueing"
+	echo "pool exists"
 else
-	echo "pool does nto exists"
+	echo "pool does not exist"
 	exit 1
 fi
 
