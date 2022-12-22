@@ -1,0 +1,7 @@
+vfs objects = full_audit
+full_audit:priority = notice
+full_audit:facility = local5
+full_audit:failure = connect
+inherit permissions = yes
+full_audit:prefix = ???%I???%u???%m???%S???%T???
+full_audit:success = connect disconnect openat
