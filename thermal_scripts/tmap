@@ -14,10 +14,12 @@ import subprocess
 import json
 import re
 import os
+import sys
 
 
 def get_hba_temps(hba_arr):
     storcli2_cards = ["9600-16i","9600-24i"]
+    hwraid_cards = ["9361-16i","9361-24i"]
     storcli_paths = {
         "storcli64": "./dependencies/storcli64",
         "storcli2": "./dependencies/storcli2"
@@ -27,8 +29,9 @@ def get_hba_temps(hba_arr):
         if hba["Model"] not in storcli2_cards:
             storcli = subprocess.Popen(
                 shlex.split("{pth} /c{ctl} show all J".format(pth=storcli_paths["storcli64"],ctl=hba["Ctl"])), stdout=subprocess.PIPE, universal_newlines=True)
+            jq_command = "jq '.Controllers[0].\"Response Data\".\"HwCfg\".\"ROC temperature(Degree {hwr})\"'".format(hwr="Celcius" if hba["Model"] not in hwraid_cards else "Celsius")
             jq = subprocess.Popen(
-                shlex.split("jq '.Controllers[0].\"Response Data\".\"HwCfg\".\"ROC temperature(Degree Celcius)\"'"), stdin=storcli.stdout, stdout=subprocess.PIPE, universal_newlines=True)
+                shlex.split(jq_command), stdin=storcli.stdout, stdout=subprocess.PIPE, universal_newlines=True)
             for temp in jq.stdout:
                 hba["temp_C"] = int(temp)
                 hba["temp_F"] = int((int(temp) * (9/5)) + 32)
