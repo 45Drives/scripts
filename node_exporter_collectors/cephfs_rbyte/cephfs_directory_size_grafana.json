@@ -1,4 +1,40 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_DASHBOARD",
+      "label": "Dashboard",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "5.4.3"
+    },
+    {
+      "type": "panel",
+      "id": "grafana-piechart-panel",
+      "name": "Pie Chart",
+      "version": "1.6.4"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph",
+      "version": "5.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "5.0.0"
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -15,8 +51,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 14,
-  "iteration": 1679923635943,
+  "id": null,
+  "iteration": 1680094983623,
   "links": [],
   "panels": [
     {
@@ -152,30 +188,17 @@
     "list": [
       {
         "allValue": "",
-        "current": {
-          "isNone": true,
-          "tags": [],
-          "text": "All",
-          "value": [
-            "$__all"
-          ]
-        },
-        "datasource": "Dashboard",
+        "current": {},
+        "datasource": "${DS_DASHBOARD}",
         "definition": "label_values(ceph_dir_rbyte, directory)",
         "hide": 0,
         "includeAll": true,
         "label": null,
         "multi": true,
         "name": "directory",
-        "options": [
-          {
-            "selected": true,
-            "text": "All",
-            "value": "$__all"
-          }
-        ],
+        "options": [],
         "query": "label_values(ceph_dir_rbyte, directory)",
-        "refresh": 0,
+        "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
