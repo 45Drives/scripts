@@ -11,10 +11,16 @@
   ],
   "__requires": [
     {
+      "type": "panel",
+      "id": "bargauge",
+      "name": "Bar Gauge",
+      "version": ""
+    },
+    {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "5.4.3"
+      "version": "6.7.6"
     },
     {
       "type": "panel",
@@ -26,13 +32,19 @@
       "type": "panel",
       "id": "graph",
       "name": "Graph",
-      "version": "5.0.0"
+      "version": ""
     },
     {
       "type": "datasource",
       "id": "prometheus",
       "name": "Prometheus",
-      "version": "5.0.0"
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
     }
   ],
   "annotations": {
@@ -52,9 +64,141 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1680094983623,
+  "iteration": 1680113695698,
   "links": [],
   "panels": [
+    {
+      "cacheTimeout": null,
+      "datasource": "${DS_DASHBOARD}",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 8,
+      "interval": "",
+      "links": [],
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [
+              {
+                "id": 0,
+                "op": "=",
+                "text": "N/A",
+                "type": 1,
+                "value": "null"
+              }
+            ],
+            "nullValueMode": "connected",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "decbytes"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal"
+      },
+      "pluginVersion": "6.7.6",
+      "targets": [
+        {
+          "aggregation": "Last",
+          "decimals": 2,
+          "displayAliasType": "Warning / Critical",
+          "displayType": "Regular",
+          "displayValueWithAlias": "Never",
+          "expr": "sum(ceph_dir_rbyte{topdirectory=~\"$topdirectory\"}) by (directory)",
+          "interval": "",
+          "legendFormat": "Directory {{directory}}",
+          "refId": "A",
+          "units": "none",
+          "valueHandler": "Number Threshold"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Panel Title",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_DASHBOARD}",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 6,
+      "options": {
+        "displayMode": "gradient",
+        "fieldOptions": {
+          "calcs": [
+            "last"
+          ],
+          "defaults": {
+            "decimals": 1,
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "#EAB839",
+                  "value": 50
+                },
+                {
+                  "color": "red",
+                  "value": 100
+                }
+              ]
+            },
+            "unit": "percent"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "pluginVersion": "6.7.6",
+      "targets": [
+        {
+          "expr": "100 * sum by (directory, topdirectory) (ceph_dir_rbyte{topdirectory=~\"$topdirectory\"}) / sum by (directory, topdirectory) (ceph_dir_rbyte_quota{topdirectory=~\"$topdirectory\"})\r\n\n\r",
+          "format": "time_series",
+          "instant": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "Directory {{directory}}",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Panel Title",
+      "type": "bargauge"
+    },
     {
       "aliasColors": {},
       "breakPoint": "50%",
@@ -63,6 +207,7 @@
         "label": "Others",
         "threshold": 0
       },
+      "datasource": "${DS_DASHBOARD}",
       "decimals": null,
       "fontSize": "80%",
       "format": "bytes",
@@ -70,7 +215,7 @@
         "h": 10,
         "w": 16,
         "x": 0,
-        "y": 0
+        "y": 16
       },
       "id": 4,
       "interval": null,
@@ -102,13 +247,16 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "datasource": "${DS_DASHBOARD}",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 16,
         "w": 21,
         "x": 0,
-        "y": 10
+        "y": 26
       },
+      "hiddenSeries": false,
       "id": 2,
       "legend": {
         "avg": false,
@@ -123,6 +271,9 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -135,7 +286,9 @@
         {
           "expr": "ceph_dir_rbyte{directory=~\"$directory\"}",
           "format": "time_series",
+          "interval": "",
           "intervalFactor": 1,
+          "legendFormat": "",
           "refId": "A"
         }
       ],
@@ -181,7 +334,8 @@
       }
     }
   ],
-  "schemaVersion": 16,
+  "refresh": false,
+  "schemaVersion": 22,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -193,6 +347,7 @@
         "definition": "label_values(ceph_dir_rbyte, directory)",
         "hide": 0,
         "includeAll": true,
+        "index": -1,
         "label": null,
         "multi": true,
         "name": "directory",
@@ -207,11 +362,34 @@
         "tagsQuery": "",
         "type": "query",
         "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {},
+        "datasource": "${DS_DASHBOARD}",
+        "definition": "label_values(ceph_dir_rbyte, topdirectory)",
+        "hide": 0,
+        "includeAll": false,
+        "index": -1,
+        "label": null,
+        "multi": false,
+        "name": "topdirectory",
+        "options": [],
+        "query": "label_values(ceph_dir_rbyte, topdirectory)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
       }
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {
@@ -242,5 +420,8 @@
   "timezone": "",
   "title": "Cephfs Directory Size",
   "uid": "pFypVtfVk",
-  "version": 17
+  "variables": {
+    "list": []
+  },
+  "version": 27
 }
