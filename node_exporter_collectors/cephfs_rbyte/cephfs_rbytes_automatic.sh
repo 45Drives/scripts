@@ -26,9 +26,13 @@ else
     cp "workfile.txt" "$prev_top_level_dirs"
 fi
 
-#finding one sub dir level size
+#finding one sub dir level
 while read sub_dir; do
+  IFS="/" read -r topdir rest <<< "$sub_dir"
   rbyte=$(cephfs-shell getxattr "$sub_dir" ceph.dir.rbytes 2>/dev/null)
-  echo "ceph_dir_rbyte{directory=\"${sub_dir}\"} ${rbyte}" >> "${export_dir}/${export_file}"
+  quota=$(cephfs-shell getxattr "$sub_dir" ceph.quota.max_bytes 2</dev/null)
+  echo "ceph_dir_rbyte{directory=\"${sub_dir}\",topdirectory=\"${topdir}\"} ${rbyte}" >> "${export_dir}/${export_file}"
+  echo "ceph_dir_rbyte_quota{directory=\"${sub_dir}\",topdirectory=\"${topdir}\"} ${quota}" >> "${export_dir}/${export_file}"
 done < totaldirs.txt
 sed -i '/^[^0-9]*$/d' "${export_dir}/${export_file}"
+sed -i '/ [[:space:]]*$/d' "${export_dir}/${export_file}"
