@@ -23,6 +23,13 @@ def get_vdevid_content():
             if regex != None:
                 vdev_id[regex.group(1)] = regex.group(2)
     return vdev_id.copy()
+
+def get_file_content(file_path):
+    if os.path.isfile(file_path):
+        with open(file_path) as file_content:
+            return file_content.read().splitlines()
+    else:
+        return ["No File Found: {fp}".format(fp=file_path)]
             
 
 def get_devices():
@@ -160,7 +167,7 @@ def main():
     report["45drives-system"] = {
         "cpu_info": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/cpu_info'),
         "ipmi": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ipmi'),
-        "motherboard": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ipmi'),
+        "motherboard": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/motherboard'),
         "pci": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/pci'),
         "network": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/network'),
         "ram": get_std_out_and_err('/usr/share/cockpit/45drives-system/scripts/ram'),
@@ -180,6 +187,12 @@ def main():
         "sata": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/sata'),
         "network": get_std_out_and_err('/usr/share/cockpit/45drives-motherboard/helper_scripts/network')
     }
+    report["server_identifier"] = get_std_out_and_err('/opt/45drives/tools/server_identifier')
+    report["os-release"] = get_file_content('/etc/os-release')
+    report["storcli64"] = get_std_out_and_err("/opt/45drives/tools/storcli64 show all")
+    report["storcli2"] = get_std_out_and_err("/opt/45drives/tools/storcli2 show all")
+    report["tools_version"] = get_file_content('/etc/45drives/server_info/tools_version')
+    
 
 
     report_file_name = "bugreport.json"
