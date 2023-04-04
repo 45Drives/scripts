@@ -42,6 +42,12 @@
     },
     {
       "type": "panel",
+      "id": "singlestat",
+      "name": "Singlestat",
+      "version": ""
+    },
+    {
+      "type": "panel",
       "id": "stat",
       "name": "Stat",
       "version": ""
@@ -50,6 +56,7 @@
   "annotations": {
     "list": [
       {
+        "$$hashKey": "object:48",
         "builtIn": 1,
         "datasource": "-- Grafana --",
         "enable": true,
@@ -64,84 +71,103 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1680113695698,
+  "iteration": 1680634569115,
   "links": [],
   "panels": [
     {
       "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#d44a3a"
+      ],
       "datasource": "${DS_DASHBOARD}",
+      "format": "s",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
       "gridPos": {
-        "h": 8,
+        "h": 3,
         "w": 12,
         "x": 0,
         "y": 0
       },
-      "id": 8,
-      "interval": "",
+      "id": 10,
+      "interval": null,
       "links": [],
-      "options": {
-        "colorMode": "value",
-        "fieldOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "defaults": {
-            "mappings": [
-              {
-                "id": 0,
-                "op": "=",
-                "text": "N/A",
-                "type": 1,
-                "value": "null"
-              }
-            ],
-            "nullValueMode": "connected",
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "color": "green",
-                  "value": null
-                }
-              ]
-            },
-            "unit": "decbytes"
-          },
-          "overrides": [],
-          "values": false
-        },
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "horizontal"
-      },
-      "pluginVersion": "6.7.6",
-      "targets": [
+      "mappingType": 1,
+      "mappingTypes": [
         {
-          "aggregation": "Last",
-          "decimals": 2,
-          "displayAliasType": "Warning / Critical",
-          "displayType": "Regular",
-          "displayValueWithAlias": "Never",
-          "expr": "sum(ceph_dir_rbyte{topdirectory=~\"$topdirectory\"}) by (directory)",
-          "interval": "",
-          "legendFormat": "Directory {{directory}}",
-          "refId": "A",
-          "units": "none",
-          "valueHandler": "Number Threshold"
+          "$$hashKey": "object:429",
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "$$hashKey": "object:430",
+          "name": "range to text",
+          "value": 2
         }
       ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": false,
+        "ymax": null,
+        "ymin": null
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "(ceph_dir_rbyte_quota{directory=~\"$directory\", job=\"node\"} / deriv(ceph_dir_rbyte{directory=~\"$directory\", job=\"node\"}[1h]))",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
       "timeFrom": null,
       "timeShift": null,
-      "title": "Panel Title",
-      "type": "stat"
+      "title": "Time till full $directory",
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "$$hashKey": "object:432",
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "avg"
     },
     {
       "datasource": "${DS_DASHBOARD}",
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 8
+        "x": 12,
+        "y": 0
       },
       "id": 6,
       "options": {
@@ -200,6 +226,76 @@
       "type": "bargauge"
     },
     {
+      "cacheTimeout": null,
+      "datasource": "${DS_DASHBOARD}",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 3
+      },
+      "id": 8,
+      "interval": "",
+      "links": [],
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [
+              {
+                "$$hashKey": "object:213",
+                "id": 0,
+                "op": "=",
+                "text": "N/A",
+                "type": 1,
+                "value": "null"
+              }
+            ],
+            "nullValueMode": "connected",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "decbytes"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal"
+      },
+      "pluginVersion": "6.7.6",
+      "targets": [
+        {
+          "$$hashKey": "object:428",
+          "aggregation": "Last",
+          "decimals": 2,
+          "displayAliasType": "Warning / Critical",
+          "displayType": "Regular",
+          "displayValueWithAlias": "Never",
+          "expr": "sum(ceph_dir_rbyte{topdirectory=~\"$topdirectory\"}) by (directory)",
+          "interval": "",
+          "legendFormat": "Directory {{directory}}",
+          "refId": "A",
+          "units": "none",
+          "valueHandler": "Number Threshold"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Panel Title",
+      "type": "stat"
+    },
+    {
       "aliasColors": {},
       "breakPoint": "50%",
       "cacheTimeout": null,
@@ -213,9 +309,9 @@
       "format": "bytes",
       "gridPos": {
         "h": 10,
-        "w": 16,
+        "w": 17,
         "x": 0,
-        "y": 16
+        "y": 11
       },
       "id": 4,
       "interval": null,
@@ -254,7 +350,7 @@
         "h": 16,
         "w": 21,
         "x": 0,
-        "y": 26
+        "y": 21
       },
       "hiddenSeries": false,
       "id": 2,
@@ -423,5 +519,5 @@
   "variables": {
     "list": []
   },
-  "version": 27
+  "version": 33
 }
