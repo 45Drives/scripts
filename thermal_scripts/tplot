@@ -6,6 +6,7 @@ import shlex
 import curses
 import os
 import re
+import signal
 from optparse import OptionParser
 
 ANSI_colors={
@@ -39,6 +40,11 @@ FIO_PARAMS={
     }
 }
 
+STOP_EARLY = False
+
+def handler(signum, frame):
+    global STOP_EARLY
+    STOP_EARLY = True
 
 def run_tmap(start_time):
     # run tmap and append the time that the measurement started as well as the duration of the measurement
@@ -291,11 +297,13 @@ def generate_output_file(t_data,args):
     csv_file.write(ram_string)
     csv_file.close()
 
-def ending_message(args,win,ss_flag):
+def ending_message(args,win,ss_flag,stop_early):
     win.clear()
     win.addstr(0, 0, "tplot: Test Complete")
     if ss_flag:
         win.addstr(2, 0, "Steady State Achieved after {s} identical consecutive temerature readings were encountered".format(s=args.ss_count))
+    elif stop_early:
+        win.addstr(2,0,"Test stopped early due to SIGINT from User")
     else:
         win.addstr(2,0, "Test reached max duration of {m} seconds.".format(m=args.max_duration))
 
@@ -349,6 +357,7 @@ def run_fio(duration):
     fio_output = fio.communicate()
 
 def main(main_screen,args):
+    signal.signal(signal.SIGINT, handler)
     show_welcome(args, main_screen)
     ss_flag = False
 
@@ -403,9 +412,11 @@ def main(main_screen,args):
 
         if elapsed_time_total >= args.max_duration:
             done = True
+        
+        if STOP_EARLY:
+            done = True
 
-
-    ending_message(args,main_screen,ss_flag)
+    ending_message(args,main_screen,ss_flag,STOP_EARLY)
     generate_output_file(t_data,args)
 
 
