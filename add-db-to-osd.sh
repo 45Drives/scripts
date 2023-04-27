@@ -1,13 +1,13 @@
 #!/bin/bash
 # Brett Kelly Oct 2021
 # 45Drives
-# Version 1.2 stable
+# Version 1.3 stable
 
 usage() { # Help
 cat << EOF
     Usage:	
         [-b] Block DB size. Required. Allowed suffixes K,M,G,T
-        [-d] Device to use as db. Required. /dev/sdX
+        [-d] Device to use as db. Required. Aliased Device name should be used /dev/X-Y
         [-f] Bypass osd per db warning
         [-o] OSDs to add db to. Required. Comma separated list of osd.id. <0,1,2,3>
         [-h] Displays this message
@@ -86,6 +86,8 @@ if [ -z $OSD_LIST ] || [ -z $DB_DEVICE ] || [ -z $BLOCK_DB_SIZE_BYTES ]; then
     exit 1
 fi
 
+# If the db device given is a linux sd device then warn if you want to continue
+
 # Check cli depandancies
 check_dependancies
 
@@ -93,18 +95,45 @@ BLOCK_DB_SIZE_EXTENTS=$(bc <<< "$BLOCK_DB_SIZE_BYTES/$PHYSICAL_EXTENT_SIZE_BYTES
 OSD_COUNT="${#OSD_LIST[@]}"
 TOTAL_DB_SIZE_BYTES=$(bc <<< "$BLOCK_DB_SIZE_BYTES*$OSD_COUNT")
 DB_DEVICE_SIZE_BYTES=$(blockdev --getsize64 $DB_DEVICE)
-DB_DEVICE_DISK_NAME=$(readlink -f $DB_DEVICE)
 
 # Check if LVM info is already present on DB_DEVICE
-LVM_JSON=$(pvs --units B --nosuffix -o name,vg_name,lv_name,lv_count,lvsize,vg_free --reportformat json )
-LVM_JSON_DEVICE=$(echo $LVM_JSON | jq --arg disk "$DB_DEVICE_DISK_NAME" '.[] |.[].pv | .[] | select(.pv_name==$disk)')
 
-# are we using an exitsing db device or a new device, if LVM_JSON is empty then assume new disk
-if [ -z "$LVM_JSON_DEVICE" ];then
+# check with wipefs that device has LVM data present
+DB_DEVICE_SIGNATURE=$(wipefs "$DB_DEVICE" --json | jq -r '.signatures | .[0].type')
+# If this is empty the disk is assumed new.
+# If this is LVM2_member the disk is assumed to already have a db lv present it
+# If anything else the disk is assumed to have something else on it and should be wiped. Quit with warning
+if [ -z "$LVM_JSON_DEVICE" ] || [ "$DB_DEVICE_SIGNATURE" == "LVM2_member" ];then
+    :
+else
+    echo "Disk is not empty nor a LVM device, wipe device first and run again"
+    exit 1
+fi
+
+# Get PVS info for the specific disk we want
+LVM_JSON=$(pvs --units B --nosuffix -o name,vg_name,lv_name,lv_count,lvsize,vg_free --reportformat json ) 
+LVM_JSON_DEVICE=$(echo $LVM_JSON | jq --arg disk "$DB_DEVICE" '.[] |.[].pv | .[] | select(.pv_name==$disk)')
+
+# Check we are using the correct device name
+# if DB_DEVICE_SIGNATURE is LVM2_member and LVM_JSON_DEVICE is empty, then the wrong disk name was used (sd name instead of alias). Quit with warning 
+if [ "$DB_DEVICE_SIGNATURE" == "LVM2_member" ] && [ -z "$LVM_JSON_DEVICE" ];then
+    echo "WARNING: device selected ($DB_DEVICE) has a LVM signature, but could not get LVM info."
+    echo "Wrong disk name was most likely provided, use the device alias name instead of the linux device name"
+    exit 1
+fi
+
+# are we using an exitsing db device or a new device, if LVM_JSON_DEVICE is empty, and DB_DEVICE_SIGNATURE is empty we have a new disk
+if [ -z "$LVM_JSON_DEVICE" ] && [ -z "$DB_DEVICE_SIGNATURE" ];then
     DB_VG_NAME="ceph-$(uuidgen)"
 else
     # if not how do we get db_VG ? inspect from device given
     DB_VG_NAME="$(echo $LVM_JSON_DEVICE | jq -r '.vg_name' | awk 'NR==1')"
+    # If there is no DB Volume group quit with warning. The disk has a LVM2_memebr signature but no volume group. Wipe disk and run again
+    if [ -z $DB_VG_NAME ];then
+        echo "WARNING: Device selected ($DB_DEVICE) has a LVM2_member signature, but no volume group"
+        echo "Wipe disk and run again"
+        exit 1
+    fi
     # Count how many lv dbs are present, add that to input osds and compare to OSD_LIMIT
     EXISTING_DB_COUNT=$(echo $LVM_JSON_DEVICE | jq -r '.lv_count' | awk 'NR==1')
     echo "WARNING: device currently has $EXISTING_DB_COUNT db's present"
@@ -163,17 +192,10 @@ if [[ "$rc" -ne 0 ]];then
     exit 1
 fi
 
-
-CEPH_MAJOR_VERSION=$(ceph version | awk '{print $3}' | cut -d . -f 1)
-if [ $CEPH_MAJOR_VERSION -gt "15" ];then
-    echo "Warning: current process is not supported on clusters version 16 and up"
-    exit 1
-fi
-
 # If we got this far then all checked are passed
 # Start migration process
 
-if [ -z "$LVM_JSON_DEVICE" ];then
+if [ -z "$LVM_JSON_DEVICE" ] && [ -z "$DB_DEVICE_SIGNATURE" ];then
     pvcreate $DB_DEVICE
     vgcreate $DB_VG_NAME $DB_DEVICE
 fi
