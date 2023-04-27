@@ -27,7 +27,9 @@ ceph auth get mgr.$(hostname -s) > /var/lib/ceph/mgr/ceph-$(hostname -s)/keyring
 
 chown ceph:ceph /var/lib/ceph/mgr/ceph-$(hostname -s)/keyring
 
-ceph-mgr -i $(hostname -s)
+systemctl enable --now ceph-mgr@$(hostname -s)
+
+#ceph-mgr -i $(hostname -s)
 
 ceph -s
 

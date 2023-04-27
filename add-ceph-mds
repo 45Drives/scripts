@@ -25,7 +25,7 @@ ceph auth get-or-create mds.$(hostname -s) mon 'profile mds' mgr 'profile mds' m
 
 chown ceph:ceph /var/lib/ceph/mds/ceph-$(hostname -s)/keyring
 
-systemctl start ceph-mds@$(hostname -s)
+systemctl enable --now ceph-mds@$(hostname -s)
 
 ceph -s
 
