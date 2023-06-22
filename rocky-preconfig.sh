@@ -96,16 +96,7 @@ install_zfs() {
     echo "Pulling down ZFS packages"
     source /etc/os-release
 
-    # ZFS repo always lags behind new rocky releases, so need to check if release exists and if not fall back to previous release repo 
-    # check to see if https://zfsonlinux.org/epel/zfs-release.el${VERSION_ID/./_}.noarch.rpm
-    if curl --head --silent --fail https://zfsonlinux.org/epel/zfs-release.el${VERSION_ID/./_}.noarch.rpm 2> /dev/null; then
-        dnf install -y https://zfsonlinux.org/epel/zfs-release.el${VERSION_ID/./_}.noarch.rpm
-    else
-        MAJOR_VERION=$(echo $VERSION_ID | cut -d . -f 1)
-        MINOR_VERSION=$(echo $VERSION_ID | cut -d . -f 2)
-        dnf install -y https://zfsonlinux.org/epel/zfs-release.el"$MAJOR_VERION"_"$((MINOR_VERSION-1))".noarch.rpm
-    fi
-    rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-zfsonlinux    
+    dnf install -y https://zfsonlinux.org/epel/zfs-release-2-3$(rpm --eval "%{dist}").noarch.rpm
     
     res=$?
     if [[ $res != 0 ]]; then  
