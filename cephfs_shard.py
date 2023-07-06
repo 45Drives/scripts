@@ -1,3 +1,8 @@
+#!/bin/bash
+# Mitch Hall
+# 45Drives
+# Version 1.0 - July 6/23
+
 import os
 import json
 import time
