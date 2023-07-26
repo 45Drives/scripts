@@ -30,5 +30,5 @@ for i, dir in enumerate(dirs):
 
     # pin the dir
     print(f"Pinning {dir} to {mds_rank}")
-    subprocess.run(f'setfattr -n ceph.dir.pin -v {mds_rank} {full_dir_path}', shell=True)
+    subprocess.run(f'setfattr -n ceph.dir.pin -v {mds_rank} "{full_dir_path}"', shell=True)
     time.sleep(1)
