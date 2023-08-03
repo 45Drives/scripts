@@ -2,6 +2,9 @@
 # /usr/lib/udev/rules.d/68-vdev.rules
 #
 
+# skip these rules if disk was handled by 67-ubm.rules
+ENV{DEVTYPE}=="disk", ENV{DISK_HANDLED_BY_UBM}=="1", GOTO="68-vdev_end"
+
 ENV{DEVTYPE}=="disk", IMPORT{program}="/usr/lib/udev/vdev_id_45drives -d %k -c /etc/vdev_id.conf"
 
 KERNEL=="*[!0-9]", ENV{SUBSYSTEM}=="block", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_PATH}"
@@ -11,3 +14,4 @@ KERNEL=="*[0-9]", ENV{SUBSYSTEM}=="block", ENV{DEVTYPE}=="partition", ENV{ID_VDE
 KERNEL=="dm-[0-9]*", ENV{SUBSYSTEM}=="block", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_PATH}"
 KERNEL=="dm-[0-9]*", ENV{SUBSYSTEM}=="block", ENV{ID_VDEV}=="?*", SYMLINK+="$env{ID_VDEV_ALT_PATH}"
 
+LABEL="68-vdev_end"

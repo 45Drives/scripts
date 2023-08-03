@@ -316,7 +316,7 @@ def show_print(win,msg,row=0):
     win.refresh()
     time.sleep(1)
 
-def setup_fio_file(tmap_data):
+def setup_fio_file(tmap_data,write_flag):
     if os.path.isfile(os.path.expanduser("tbench.fio")):
         os.remove(os.path.expanduser("tbench.fio"))
     fio_job_file = open("tbench.fio","w")
@@ -331,6 +331,8 @@ def setup_fio_file(tmap_data):
 
     FIO_PARAMS["global"]["filename"] = disk_string
     FIO_PARAMS["global"]["numjobs"] = str(len(tmap_data["DISKS"]))
+    if write_flag == True:
+        FIO_PARAMS["4k-rand-read"]["rw"] = "randwrite"
     
     for param_group in FIO_PARAMS:
         fio_job_file.write(f"[{param_group}]\n")
@@ -369,7 +371,7 @@ def main(main_screen,args):
     # initialize t_data and get first reading
     t_data = []
     tmap_data = run_tmap(start_time)
-    setup_fio_file(tmap_data)
+    setup_fio_file(tmap_data,args.fio_write)
     t_data.append(tmap_data.copy())
     
 
@@ -431,5 +433,6 @@ if __name__ == "__main__":
     parser.add_option("-o", "--output_file", action="store", type="string",
                       dest="output_file", default="tplot.csv", help="the name of the output file. [default: %default]")
     parser.add_option("-f", "--fio", action="store_true", dest="fio", help="use fio job to stress disks between temperature readings.")
+    parser.add_option("-w", "--write", action="store_true", dest="fio_write", default=False, help="write to all disks using fio.")
     (args, cli_args) = parser.parse_args()
     curses.wrapper(main,args)

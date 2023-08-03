@@ -15,6 +15,7 @@ def wizard(params,server_info):
     params["max_duration"] = get_test_duration()
     params["polling_interval"], tmap_result = get_tmap_interval()
     params["fio_flag"] = get_fio_setting()
+    params["fio_write"] = get_fio_write()
     params["graph_flag"] = get_graph_flag()
     params["graph_settings"] = get_graph_settings(params,server_info,tmap_result) if params["graph_flag"] else {}
     params["rsync_settings"] = get_rsync_params()
@@ -104,6 +105,24 @@ def get_fio_setting():
         flag = False
     return flag
 
+def get_fio_write():
+    selection = ""
+    flag = True
+    while selection not in ["y","Y","n","N"]:
+        selection = input("Would you like to perform WRITES on all storage disks between measurements using fio? (y/n): ")
+        if selection not in ["y","Y","n","N"]:
+            print("Invalid selection. Try again.")
+    if selection in ["y","Y"]:
+        confirm = input("Are you sure? Data can and will be corrupted on your storage disks if you write. (type 'yesiamsure' to confirm): ")
+        if confirm == "yesiamsure":
+            flag = True
+        else:
+            print("yesiamsure not entered. Defaulting to read only.")
+            flag = False
+    if selection in ["n","N"]:
+        flag = False
+    return flag
+
 def get_graph_flag():
     selection = ""
     flag = True
@@ -177,17 +196,15 @@ def run_tplot(params):
     #./tplot -o output/$TEST_NAME.csv -d 120 -i 10 -s 3 -f
     steady_state = 3 + int((60/params["polling_interval"]))
 
-    command = "./tplot -o output/{tn}.csv -d {dur} -i {pi} -s {ss} {fio}".format(
+    command = "./tplot -o output/{tn}.csv -d {dur} -i {pi} -s {ss} {fio} {write}".format(
         tn=params["test_name"],
         dur=params["max_duration"],
         pi=params["polling_interval"],
         ss=steady_state,
-        fio = "-f" if params["fio_flag"] else ""
+        fio = "-f" if params["fio_flag"] else "",
+        write = "-w" if params["fio_flag"] and params["fio_write"] else ""
         )
     return os.system(command)
-    
-
-
 
 
 def run_csv_converter(params):
@@ -243,6 +260,7 @@ def main():
         "max_duration": 3600,
         "polling_interval": 60,
         "fio_flag": True,
+        "write_flag": False,
         "graph_flag": True,
         "graph_settings": {},
         "rsync_settings": {}
