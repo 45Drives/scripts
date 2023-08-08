@@ -186,11 +186,24 @@ def ss_check(t_data_current, ss_count,win):
     for ram in t_data_current["RAM"]:
         ram_ss += ram["temp_eq_count"]
 
-    hba_target = len(t_data_current["HBA"]) * ss_count
-    disk_target = len(t_data_current["DISKS"]) * ss_count
-    cpu_target =  len(t_data_current["CPU"]) * ss_count
-    ram_target = len(t_data_current["RAM"]) * ss_count
+    hba_target = len(t_data_current["HBA"]) * ss_count if len(t_data_current["HBA"]) * ss_count > 0 else 1
+    disk_target = len(t_data_current["DISKS"]) * ss_count if len(t_data_current["DISKS"]) * ss_count > 0 else 1
+    cpu_target =  len(t_data_current["CPU"]) * ss_count if len(t_data_current["CPU"]) * ss_count > 0 else 1
+    ram_target = len(t_data_current["RAM"]) * ss_count if len(t_data_current["RAM"]) * ss_count > 0 else 1
 
+    if len(t_data_current["HBA"]) == 0:
+        hba_ss = 1
+        hba_target = 1
+    if len(t_data_current["DISKS"]) == 0:
+        disk_ss = 1
+        disk_target = 1
+    if len(t_data_current["CPU"]) == 0:
+        cpu_ss = 1
+        cpu_target = 1
+    if len(t_data_current["RAM"]) == 0:
+        ram_ss = 1
+        ram_target = 1
+    
     hba_threshold = 1.0
     disk_threshold = 0.95
     cpu_threshold = 0.90
