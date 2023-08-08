@@ -25,6 +25,7 @@ services:
       - MYSQL_DATABASE=nextcloud
       - MYSQL_USER=nextcloud
       - MYSQL_HOST=nextcloud-db
+      - PHP_UPLOAD_LIMIT=200G
     networks:
       - frontend
       - backend
@@ -45,7 +46,7 @@ services:
       - backend
 
   npm-app:
-    image: jc21/nginx-proxy-manager:latest
+    image: jc21/nginx-proxy-manager:2.9.19
     restart: always
     ports:
       - "80:80"
