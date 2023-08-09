@@ -58,13 +58,13 @@ def get_averages_dict(input_list):
     
     if len(output_dict["CPU (avg)"]) == 0:
         output_dict.pop("CPU (avg)",None)
-
-    for j in range(0,len(hba[0])):
-        avg = 0
-        for i in range(0,len(hba)):      
-            avg += int(hba[i][j])
-        output_dict["HBA (avg)"].append(str(int(avg/len(hba))))
-        avg = 0
+    if len(hba) > 0:
+        for j in range(0,len(hba[0])):
+            avg = 0
+            for i in range(0,len(hba)):      
+                avg += int(hba[i][j])
+            output_dict["HBA (avg)"].append(str(int(avg/len(hba))))
+            avg = 0
 
     for hdd_row_key in hdd_dict.keys():
         for j in range(0,len(hdd_dict[hdd_row_key][0])):
