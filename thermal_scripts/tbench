@@ -142,6 +142,17 @@ def get_graph_settings(params,server_info,tmap_result):
     }
     graph_vars["title"] = "{model} - {dc} Drives - {rt}°C".format(model=server_info["Model"],dc=len(tmap_result["DISKS"]),rt=params["room_temp_c"])
     print("Auto-generated title for graph: {t}".format(t=graph_vars["title"]))
+    confirm_title = input("Would you like to use this Auto-generated title? (y/n): ")
+    if confirm_title not in ["Y", "y"]:
+        title_done = False
+        while not title_done:
+            temp_title = input("Enter a title for graph: ")
+            accept_title = input("Use this title for graph? \"{tt} - {rt}°C\" (y/n): ".format(tt=temp_title,rt=params["room_temp_c"]))
+            if accept_title in ["Y","y"]:
+                graph_vars["title"] = temp_title
+                title_done = True
+            else:
+                print("Trying again..")
     return graph_vars
 
 def get_rsync_params():
