@@ -242,7 +242,7 @@ def run_rsync(params):
 
 def run_rsync_test(params):
     os.makedirs("./tbench_results/{tn}".format(tn=params["test_name"]),exist_ok=True)
-    with open('./tbench_results/{tn}.json'.format(tn=params["test_name"]), 'w') as outfile:
+    with open('./tbench_results/{tn}/{tn}.json'.format(tn=params["test_name"]), 'w') as outfile:
         outfile.write(json.dumps(params))
     command = "rsync -avh ./tbench_results/{tn} {u}@{h}:{d}/".format(tn=params["test_name"],u=params["rsync_settings"]["rsync_user"],h=params["rsync_settings"]["rsync_host"],d=params["rsync_settings"]["rsync_dir"])
     print("testing out rsync.")
