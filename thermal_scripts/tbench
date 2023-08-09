@@ -240,6 +240,18 @@ def run_rsync(params):
     command = "rsync -avh ./tbench_results/{tn} {u}@{h}:{d}/".format(tn=params["test_name"],u=params["rsync_settings"]["rsync_user"],h=params["rsync_settings"]["rsync_host"],d=params["rsync_settings"]["rsync_dir"])
     return os.system(command)
 
+def run_rsync_test(params):
+    os.makedirs("./tbench_results/{tn}".format(tn=params["test_name"]),exist_ok=True)
+    with open('./tbench_results/{tn}.json'.format(tn=params["test_name"]), 'w') as outfile:
+        outfile.write(json.dumps(params))
+    command = "rsync -avh ./tbench_results/{tn} {u}@{h}:{d}/".format(tn=params["test_name"],u=params["rsync_settings"]["rsync_user"],h=params["rsync_settings"]["rsync_host"],d=params["rsync_settings"]["rsync_dir"])
+    print("testing out rsync.")
+    if os.system(command) != 0:
+        print("rsync test failed. You can run rsync yourself afterward using this command: \n{c}".format(c=command))
+    else:
+        print("rsync test passed.")
+    return os.system(command)
+
 def show_welcome():
     msg = [
     "                                                            ",
@@ -272,6 +284,8 @@ def main():
     }
     server_info = get_server_info()
     wizard(params,server_info)
+    if params["rsync_settings"]["rsync_flag"]:
+        run_rsync_test(params)
     print(json.dumps(params,indent=4))
     rv = run_tplot(params)
     if rv == 0:
