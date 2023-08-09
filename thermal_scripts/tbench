@@ -149,7 +149,7 @@ def get_graph_settings(params,server_info,tmap_result):
             temp_title = input("Enter a title for graph: ")
             accept_title = input("Use this title for graph? \"{tt} - {rt}°C\" (y/n): ".format(tt=temp_title,rt=params["room_temp_c"]))
             if accept_title in ["Y","y"]:
-                graph_vars["title"] = temp_title
+                graph_vars["title"] = "{tt} - {rt}°C".format(tt=temp_title,rt=params["room_temp_c"])
                 title_done = True
             else:
                 print("Trying again..")
@@ -256,12 +256,6 @@ def show_welcome():
         print(line)
 
 def main():
-    #parser = OptionParser()  # use optparse to handle command line arguments
-    #parser.add_option("-i", "--input", action="store", type="string",
-    #                  dest="input_file", default=None, help="input file [default: %default]")
-    #parser.add_option("-o", "--output", action="store", type="string",
-    #                  dest="output_file", default="out.csv", help="output file [default: %default]")
-    #(args, cli_args) = parser.parse_args()
 
     show_welcome()
     params = {

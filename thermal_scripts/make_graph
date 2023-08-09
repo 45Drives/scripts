@@ -90,10 +90,6 @@ def main():
 
     time = values[0]
     for i in range(1,len(input_list)):
-        print(time)
-        print(values[i])
-        print(input_list[i][0])
-        print(line_colors[input_list[i][0]])
         if len(values[i]) > 0:
             ax.plot(time,values[i], label = input_list[i][0],color=line_colors[input_list[i][0]])
             annot_max(np.array(time),np.array(values[i]))
