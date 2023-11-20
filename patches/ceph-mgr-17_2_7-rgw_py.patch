@@ -1,0 +1,17 @@
+4a5
+> import re
+97a99,108
+>                 frontend_config = metadata['frontend_config#0']
+>                 port_match = re.search(r"port=(\d+)", frontend_config)
+>                 port = None
+>                 if port_match:
+>                     port = port_match.group(1)
+>                 else:
+>                     match_from_endpoint = re.search(r"endpoint=\S+:(\d+)", frontend_config)
+>                     if match_from_endpoint:
+>                         port = match_from_endpoint.group(1)
+> 
+108c119
+<                     'port': int(metadata['frontend_config#0'].split('port=')[1])
+---
+>                     'port': int(port) if port else None
