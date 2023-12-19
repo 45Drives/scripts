@@ -280,12 +280,27 @@ def main():
         "write_flag": False,
         "graph_flag": True,
         "graph_settings": {},
-        "rsync_settings": {}
+        "rsync_settings": {},
+        "script_commands": {}
     }
     server_info = get_server_info()
     wizard(params,server_info)
+    os.makedirs("./tbench_results/{tn}".format(tn=params["test_name"]),exist_ok=True)
+
+    if params["rsync_settings"]["rsync_flag"]:
+        params["script_commands"]["rsync"] = command = "rsync -avh ./tbench_results/{tn} {u}@{h}:{d}/".format(tn=params["test_name"],u=params["rsync_settings"]["rsync_user"],h=params["rsync_settings"]["rsync_host"],d=params["rsync_settings"]["rsync_dir"])
+
+    params["script_commands"]["csv_converter"] = "./csv_converter -i output/{tn}.csv -o chart_csv/{tn}.csv".format(tn=params["test_name"])
+    
+    if params["graph_flag"]:
+        params["script_commands"]["make_graph"] = "./make_graph -i chart_csv/{tn}.csv -o graphs/{tn}.png -t '{gt}'".format(tn=params["test_name"],gt=params["graph_settings"]["title"])
+
+    with open('./tbench_results/{tn}/{tn}.json'.format(tn=params["test_name"]), 'w') as outfile:
+        outfile.write(json.dumps(params))
+        
     if params["rsync_settings"]["rsync_flag"]:
         run_rsync_test(params)
+
     print(json.dumps(params,indent=4))
     rv = run_tplot(params)
     if rv == 0:
