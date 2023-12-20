@@ -103,7 +103,7 @@ def get_alias_path(alias,used_slots):
 					done=True
 			elif len(slot) == 1:
 				print(" {c}[Duplicate Device Path Found - Ignoring]{e}".format(c=ANSI_colors["RED"],e=ANSI_colors["END"]),flush=True)
-			else len(slot) != 1:
+			elif len(slot) != 1:
 				print(" {c}[Unable to determine unique device path]{e}".format(c=ANSI_colors["RED"],e=ANSI_colors["END"]),flush=True)
 				print(" List of device path's that changed upon Insersion/Removal:")
 				for dev_path in slot:
