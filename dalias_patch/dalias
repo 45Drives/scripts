@@ -83,35 +83,21 @@ def get_alias_path(alias,used_slots):
 			# A change has occurred
 			if len(device_list) > len(device_list_old):
 				# drive was inserted
-				slot = [x for x in list(set(device_list).difference(set(device_list_old))) if "part" not in x]
+				slot = [x for x in list(set(device_list).difference(set(device_list_old))) if "part" not in x and x.endswith(".0")]
 				print(" {c}[Drive Inserted]{e}".format(c=ANSI_colors["GREEN"],e=ANSI_colors["END"]),flush=True,end="")
 			elif len(device_list) < len(device_list_old):
 				# drive was removed from a slot
-				slot = [x for x in list(set(device_list_old).difference(set(device_list))) if "part" not in x]
+				slot = [x for x in list(set(device_list_old).difference(set(device_list))) if "part" not in x and x.endswith(".0")]
 				print(" {c}[Drive Removed]{e}".format(c=ANSI_colors["YELLOW"],e=ANSI_colors["END"]),flush=True,end="")
 			if len(slot) == 1 and slot[0] not in used_slots:
 				print(" {c}[Device Path Captured]{e}".format(c=ANSI_colors["WHITE"],e=ANSI_colors["END"]),flush=True)
 				used_slots.append(slot[0])
 				path = slot[0]
 				done=True
-			elif len(slot) == 2 and slot[0] not in used_slots and slot[1] not in used_slots:
-				if slot[0] in slot[1]:
-					path = slot[0]
-					done=True
-				elif slot[1] in slot[0]:
-					path = slot[1]
-					done=True
-			elif len(slot) == 1:
+			else:
 				print(" {c}[Duplicate Device Path Found - Ignoring]{e}".format(c=ANSI_colors["RED"],e=ANSI_colors["END"]),flush=True)
-			elif len(slot) != 1:
-				print(" {c}[Unable to determine unique device path]{e}".format(c=ANSI_colors["RED"],e=ANSI_colors["END"]),flush=True)
-				print(" List of device path's that changed upon Insersion/Removal:")
-				for dev_path in slot:
-					print(slot)
-				print("Device paths need to be unique for dalias to work. Check your udev rules to see why you don't have unique device paths.")
-				sys.exit(1)
 		else:
-			print("Comparison failed, try again.")
+			print("Comparison failed, try again in 5 seconds.")
 	return path
 
 def print_alias_dict(alias_dict):
