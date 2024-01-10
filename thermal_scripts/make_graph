@@ -27,7 +27,7 @@ def annot_max(x,y, ax=None):
     bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
     arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
     kw = dict(xycoords='data',textcoords="axes fraction",
-            bbox=bbox_props, ha="right", va="top")
+            bbox=bbox_props)
     ax.annotate(text, xy=(xmax, ymax), xytext=(0.94,0.96), **kw)
 
 def run_tmap():
@@ -92,7 +92,7 @@ def main():
     for i in range(1,len(input_list)):
         if len(values[i]) > 0:
             ax.plot(time,values[i], label = input_list[i][0],color=line_colors[input_list[i][0]])
-            annot_max(np.array(time),np.array(values[i]))
+    #annot_max(np.array(time),np.array(values[i]),ax)
 
     #ax.plot(time,input_list[1][1:], label = input_list[1][0])
 
