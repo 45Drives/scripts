@@ -3,30 +3,33 @@
 OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
 
 if [ "$OS" == 'NAME="Rocky Linux"' ]; then
-
-        dnf install ceph-mds
-
-elif [ $OS == 'NAME="Ubuntu"' ]; then
-
-        apt install ceph-mds
-
+    dnf install ceph-mds
+elif [ "$OS" == 'NAME="Ubuntu"' ]; then
+    apt install ceph-mds
 else
-
-        echo "OS is not Ubuntu or Rocky Linux"
-        exit
-
+    echo "OS is not Ubuntu or Rocky Linux"
+    exit
 fi
 
-mkdir /var/lib/ceph/mds/ceph-$(hostname -s)
+BASE_HOSTNAME=$(hostname -s)
+HOSTNAME=$BASE_HOSTNAME
+COUNTER=1
+DIR="/var/lib/ceph/mds/ceph-$HOSTNAME"
 
-chown ceph:ceph /var/lib/ceph/mds/ceph-$(hostname -s)
+while [ -d "$DIR" ]; do
+    HOSTNAME="${BASE_HOSTNAME}-${COUNTER}"
+    DIR="/var/lib/ceph/mds/ceph-$HOSTNAME"
+    ((COUNTER++))
+done
 
-ceph auth get-or-create mds.$(hostname -s) mon 'profile mds' mgr 'profile mds' mds 'allow *' osd 'allow *' > /var/lib/ceph/mds/ceph-$(hostname -s)/keyring
+mkdir "$DIR"
+chown ceph:ceph "$DIR"
 
-chown ceph:ceph /var/lib/ceph/mds/ceph-$(hostname -s)/keyring
+ceph auth get-or-create mds.$HOSTNAME mon 'profile mds' mgr 'profile mds' mds 'allow *' osd 'allow *' > "$DIR/keyring"
+chown ceph:ceph "$DIR/keyring"
 
-systemctl enable --now ceph-mds@$(hostname -s)
+systemctl enable --now ceph-mds@$HOSTNAME
 
 ceph -s
 
-echo -e "\e[1;31mmds-$(hostname -s)\e[0m has been \e[1;32madded\e[0m"
+echo -e "\e[1;31mmds-$HOSTNAME\e[0m has been \e[1;32madded\e[0m"
