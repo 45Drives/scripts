@@ -1,2 +1,2 @@
-# udev rule to disable write cache on HDDs only for ceph clusters
-ACTION=="add", SUBSYSTEM=="scsi_disk", ATTR{queue/rotational}=="1", ATTR{cache_type}:="write through"
+# udev rule to disable write cache on drives only for ceph clusters
+ACTION=="add", SUBSYSTEM=="scsi_disk", ATTR{cache_type}:="write through"
