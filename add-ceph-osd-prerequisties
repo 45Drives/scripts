@@ -1,0 +1,49 @@
+#!/bin/bash
+
+OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
+
+if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
+
+        dnf install ceph-osd
+
+elif [ $OS == 'NAME="Ubuntu"' ]; then
+
+        apt install ceph-osd
+
+else
+
+        echo "OS is not Ubuntu or Rocky Linux"
+        exit
+
+fi
+
+cat <<EOF > /etc/sysctl.d/ceph-tunings.conf
+fs.aio-max-nr=1048576
+fs.file-max=26234859
+vm.zone_reclaim_mode=0
+vm.swappiness=0
+vm.min_free_kbytes=4194303
+kernel.pid_max=4194304
+EOF
+
+sysctl -p /etc/sysctl.d/ceph-tunings.conf
+
+if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
+
+cat <<EOF > /etc/sysconfig/ceph
+CLUSTER=ceph
+TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+EOF
+
+elif [ $OS == 'NAME="Ubuntu"' ]; then
+
+cat <<EOF > /etc/default/ceph
+CLUSTER=ceph
+TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES=134217728
+EOF
+
+fi
+
+ceph -s
+
+echo -e "\e[1;31m$(hostname -s)\e[0m has ceph osd tunings \e[1;32mapplied\e[0m"

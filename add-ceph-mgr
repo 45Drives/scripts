@@ -29,8 +29,6 @@ chown ceph:ceph /var/lib/ceph/mgr/ceph-$(hostname -s)/keyring
 
 systemctl enable --now ceph-mgr@$(hostname -s)
 
-#ceph-mgr -i $(hostname -s)
-
 ceph -s
 
 echo -e "\e[1;31mmgr-$(hostname -s)\e[0m has been \e[1;32madded\e[0m"
