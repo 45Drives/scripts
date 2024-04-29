@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # Mitch Hall
+# Edit Matthew Hutchinson
 # 45Drives
-# Version 1.1 - July 31/23
+# Version 1.2 - April 29/24
 import os
 import json
 import time
@@ -13,6 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description='Shard directories and pin each to a different MDS.')
     parser.add_argument('-d', '--dir', help='The top-level directory to shard.')
     parser.add_argument('-D', '--dry-run', action='store_true', help='Run the script in dry run mode. No actions will be performed.')
+    parser.add_argument('-F', '--force', action='store_true', help='Ignore existing pins')
     args = parser.parse_args()
 
     if args.dir:
@@ -38,7 +40,7 @@ def main():
 
             if "ceph.dir.pin" in pinned_mds:
                 current_mds = re.search('ceph.dir.pin="(.*)"', pinned_mds).group(1)
-                if current_mds != "-1":
+                if current_mds != "-1" and not args.force :
                     print(f"{dir} is already pinned by MDS {current_mds}")
                 else:
                     if args.dry_run:
@@ -65,4 +67,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
