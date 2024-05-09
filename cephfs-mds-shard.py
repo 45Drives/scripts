@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-# Mitch Hall
-# Edit Matthew Hutchinson
+# Matthew Hutchinson
 # 45Drives
-# Version 1.2 - April 29/24
+# Version 2 - May 09/24
 import os
 import json
 import time
@@ -11,7 +10,6 @@ import subprocess
 import re
 import sys
 
-<<<<<<< HEAD
 # Find pinned directories
 def find_non_negative_ceph_dir_pin(starting_directory):
     non_negative_dirs = []
@@ -64,19 +62,14 @@ def list_dir(starting_directory):
 
 
 # Main fuction to run
-=======
->>>>>>> parent of 09b26cc (Update cephfs-mds-shard.py)
 def main():
     parser = argparse.ArgumentParser(description='Shard directories and pin each to a different MDS.')
     parser.add_argument('-d', '--dir', help='The top-level directory to shard.')
     parser.add_argument('-D', '--dry-run', action='store_true', help='Run the script in dry run mode. No actions will be performed.')
     parser.add_argument('-F', '--force', action='store_true', help='Ignore existing pins')
-<<<<<<< HEAD
     parser.add_argument('-l', '--list', action='store_true', help='Lists pinned directories')
     parser.add_argument('-r', '--remove', action='store_true', help='Remove pin on pinned directories')
     parser.add_argument('-m', '--next_mds', help='Specify the next MDS to start with')
-=======
->>>>>>> parent of 09b26cc (Update cephfs-mds-shard.py)
     args = parser.parse_args()
 
     if args.dir:
@@ -84,7 +77,6 @@ def main():
         while not "HEALTH_OK" in subprocess.check_output("ceph health 2>/dev/null", shell=True).decode():
             print("Waiting 10s for HEALTH_OK...")
             time.sleep(10)
-<<<<<<< HEAD
         # List Pinned Directories
         if args.list and not args.remove:
             dirs_to_repin=list_dir(args.dir)
@@ -92,9 +84,6 @@ def main():
         if args.remove:
             dirs_to_repin=list_dir(args.dir)
             repin_directories(dirs_to_repin)
-=======
-
->>>>>>> parent of 09b26cc (Update cephfs-mds-shard.py)
         # get max_mds info
         fs_dump = subprocess.check_output("ceph fs dump --format json 2>/dev/null", shell=True)
         max_mds = json.loads(fs_dump)["filesystems"][0]["mdsmap"]["max_mds"]
@@ -102,7 +91,6 @@ def main():
         # loop through the dirs and pin to available MDS
         dirs = sorted([d for d in os.listdir(args.dir) if os.path.isdir(os.path.join(args.dir, d))])
         
-<<<<<<< HEAD
         # Specify what MDS to start with, if none start at 0
         if args.next_mds and int(args.next_mds) < max_mds:
             next_mds = int(args.next_mds) #if args.next_mds > max_mds else 0
@@ -118,14 +106,10 @@ def main():
         if not (args.list or args.remove):
             for dir in dirs:
                 full_dir_path = os.path.join(args.dir, dir)
-=======
-        next_mds = 0
->>>>>>> parent of 09b26cc (Update cephfs-mds-shard.py)
 
-        for dir in dirs:
-            full_dir_path = os.path.join(args.dir, dir)
+                # check if MDS already pinned
+                pinned_mds = subprocess.check_output(f'getfattr -n ceph.dir.pin "{full_dir_path}" 2>/dev/null', shell=True).decode()
 
-<<<<<<< HEAD
                 if "ceph.dir.pin" in pinned_mds:
                     current_mds = re.search('ceph.dir.pin="(.*)"', pinned_mds).group(1)
                     if current_mds != "-1" and not args.force :
@@ -140,40 +124,16 @@ def main():
                             subprocess.run(f'setfattr -n ceph.dir.pin -v {next_mds} "{full_dir_path}"', shell=True)
                         next_mds = str((int(next_mds) + 1) % max_mds)
                         time.sleep(1)
-=======
-            # check if MDS already pinned
-            pinned_mds = subprocess.check_output(f'getfattr -n ceph.dir.pin "{full_dir_path}" 2>/dev/null', shell=True).decode()
-
-            if "ceph.dir.pin" in pinned_mds:
-                current_mds = re.search('ceph.dir.pin="(.*)"', pinned_mds).group(1)
-                if current_mds != "-1" and not args.force :
-                    print(f"{dir} is already pinned by MDS {current_mds}")
->>>>>>> parent of 09b26cc (Update cephfs-mds-shard.py)
                 else:
                     if args.dry_run:
-                        # print the action to be performed
+                    # print the action to be performed
                         print(f"Would pin {dir} to {next_mds} - Remove dry run flag to set")
                     else:
-                        # pin the dir
+                    # If ceph.dir.pin is not present, pin the dir
                         print(f"Pinning {dir} to MDS {next_mds}")
                         subprocess.run(f'setfattr -n ceph.dir.pin -v {next_mds} "{full_dir_path}"', shell=True)
-<<<<<<< HEAD
                     next_mds = str((int(next_mds) + 1) % max_mds)
                     time.sleep(1)    
-=======
-                    next_mds = (next_mds + 1) % max_mds
-                    time.sleep(1)
-            else:
-                if args.dry_run:
-                    # print the action to be performed
-                    print(f"Would pin {dir} to {next_mds} - Remove dry run flag to set")
-                else:
-                    # If ceph.dir.pin is not present, pin the dir
-                    print(f"Pinning {dir} to MDS {next_mds}")
-                    subprocess.run(f'setfattr -n ceph.dir.pin -v {next_mds} "{full_dir_path}"', shell=True)
-                next_mds = (next_mds + 1) % max_mds
-                time.sleep(1)
->>>>>>> parent of 09b26cc (Update cephfs-mds-shard.py)
     else:
         parser.print_help()
 
