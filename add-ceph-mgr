@@ -3,18 +3,12 @@
 OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
 
 if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
-
         dnf install ceph-mgr ceph-mgr-modules-core ceph-mgr-dashboard
-
 elif [ $OS == 'NAME="Ubuntu"' ]; then
-
         apt install ceph-mgr ceph-mgr-modules-core ceph-mgr-dashboard
-
 else
-
         echo "OS is not Ubuntu or Rocky Linux"
         exit
-
 fi
 
 mkdir /var/lib/ceph/mgr/ceph-$(hostname -s)

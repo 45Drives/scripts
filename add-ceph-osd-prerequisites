@@ -3,18 +3,12 @@
 OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
 
 if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
-
         dnf install ceph-osd ceph-volume
-
 elif [ $OS == 'NAME="Ubuntu"' ]; then
-
         apt install ceph-osd ceph-volume
-
 else
-
         echo "OS is not Ubuntu or Rocky Linux"
         exit
-
 fi
 
 cat <<EOF > /etc/sysctl.d/ceph-tunings.conf
