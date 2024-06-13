@@ -1,4 +1,4 @@
-#! bin/bash
+#!/bin/bash
 
 interpreter=$(ps -p $$ | awk '$1 != "PID" {print $(NF)}' | tr -d '()')
 
