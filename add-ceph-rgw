@@ -1,0 +1,62 @@
+#!/bin/bash
+
+OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
+
+if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
+        dnf install ceph-radosgw
+elif [ $OS == 'NAME="Ubuntu"' ]; then
+        apt install ceph-radosgw
+else
+        echo "OS is not Ubuntu or Rocky Linux"
+        exit
+fi
+
+# Prompt for ceph.conf and keyring
+while true; do
+read -p "Is the /etc/ceph/ceph.conf file and the admin keyring on this host (yes/no): " response
+
+if [[ "$response" == "no" ]]; then
+    echo "Exiting..."
+    exit 0
+elif [[ "$response" == "yes" ]]; then
+    echo "Continuing..."
+    break
+else
+    echo "Invalid response. Please enter 'yes' or 'no'."
+fi
+done
+
+# Prompt the user for the IP address
+read -p "Enter the IP address for the RGW frontend endpoint: " ip_address
+
+# Validate the IP address format (basic validation)
+if [[ ! $ip_address =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Invalid IP address format."
+    exit 1
+fi
+
+# Set Ceph config options for the RGW
+echo "Setting ceph config options"
+ceph config set client.rgw.$(hostname -s).rgw0 rgw_frontends "beast endpoint=$ip_address:8080"
+ceph config set client.rgw.$(hostname -s).rgw0 rgw_thread_pool_size 512
+
+
+# Create Keyring Directory and make Keyring
+echo "Creating Keyring"
+mkdir /var/lib/ceph/radosgw/ceph-rgw.$(hostname -s).rgw0
+ceph auth get-or-create client.rgw.$(hostname -s).rgw0 mon 'allow rw' osd 'allow rwx'
+ceph auth get client.rgw.$(hostname -s).rgw0 > /var/lib/ceph/radosgw/ceph-rgw.$(hostname -s).rgw0/keyring
+chown ceph:ceph /var/lib/ceph/radosgw/ceph-rgw.$(hostname -s).rgw0/keyring
+
+# Open Firewall ports 
+echo "Opening Firewall"
+firewall-cmd --add-port=8080/tcp --permanent
+firewall-cmd --reload 
+
+# Start RGW Service
+echo "Starting RGW service"
+systemctl enable --now ceph-radosgw@rgw.$(hostname -s).rgw0
+
+ceph -s
+
+echo -e "\e[1;31mrgw-$(hostname -s)\e[0m has been \e[1;32madded\e[0m"

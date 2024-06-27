@@ -11,14 +11,35 @@ else
         exit
 fi
 
+# Prompt for ceph.conf and keyring
+while true; do
+read -p "Is the /etc/ceph/ceph.conf file and the admin keyring on this host (yes/no): " response
+
+if [[ "$response" == "no" ]]; then
+    echo "Exiting..."
+    exit 0
+elif [[ "$response" == "yes" ]]; then
+    echo "Continuing..."
+    break
+else
+    echo "Invalid response. Please enter 'yes' or 'no'."
+fi
+done
+
+# Create Keyring Directory and make Keyring
+echo "Creating Keyring"
 mkdir /var/lib/ceph/mgr/ceph-$(hostname -s)
-
 ceph auth get-or-create mgr.$(hostname -s) mon 'allow profile mgr' osd 'allow *' mds 'allow *'
-
 ceph auth get mgr.$(hostname -s) > /var/lib/ceph/mgr/ceph-$(hostname -s)/keyring
-
 chown ceph:ceph /var/lib/ceph/mgr/ceph-$(hostname -s)/keyring
 
+# Open Firewall ports 
+echo "OPening Firewall"
+firewall-cmd --add-service=ceph --permanent
+firewall-cmd --reload 
+
+# Start MGR Service
+echo "Starting MGR service"
 systemctl enable --now ceph-mgr@$(hostname -s)
 
 ceph -s

@@ -2,10 +2,10 @@
 
 OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
 
-if [ "$OS" == 'NAME="Rocky Linux"' ]; then
-        dnf install ceph-mds
+if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
+        dnf install ceph-mon 
 elif [ $OS == 'NAME="Ubuntu"' ]; then
-        apt install ceph-mds
+        apt install ceph-mon
 else
         echo "OS is not Ubuntu or Rocky Linux"
         exit
@@ -26,34 +26,23 @@ else
 fi
 done
 
-# Gather current number of MDSs and add 1
-BASE_HOSTNAME=$(hostname -s)
-HOSTNAME=$BASE_HOSTNAME
-COUNTER=1
-DIR="/var/lib/ceph/mds/ceph-$HOSTNAME"
-
-while [ -d "$DIR" ]; do
-    HOSTNAME="${BASE_HOSTNAME}-${COUNTER}"
-    DIR="/var/lib/ceph/mds/ceph-$HOSTNAME"
-    ((COUNTER++))
-done
-
 # Create Keyring Directory and make Keyring
 echo "Creating Keyring"
-mkdir "$DIR"
-chown ceph:ceph "$DIR"
-ceph auth get-or-create mds.$HOSTNAME mon 'profile mds' mgr 'profile mds' mds 'allow *' osd 'allow *' > "$DIR/keyring"
-chown ceph:ceph "$DIR/keyring"
+mkdir /var/lib/ceph/mon/ceph-$(hostname -s)
+ceph auth get mon. -o /tmp/key-$(hostname -s)
+ceph mon getmap -o /tmp/map-$(hostname -s)
+ceph-mon -i $(hostname -s) --mkfs --monmap /tmp/map-$(hostname -s) --keyring /tmp/key-$(hostname -s)
+chown -R ceph:ceph /var/lib/ceph/mon/ceph-$(hostname -s)
 
 # Open Firewall ports 
 echo "Opening Firewall"
 firewall-cmd --add-service={ceph,ceph-mon} --permanent
 firewall-cmd --reload 
 
-# Start MDS Service
-echo "Starting MDS service"
-systemctl enable --now ceph-mds@$HOSTNAME
+# Start MON Service
+echo "Starting MON service"
+systemctl enable --now ceph-mon@$(hostname -s)
 
 ceph -s
 
-echo -e "\e[1;31mmds-$HOSTNAME\e[0m has been \e[1;32madded\e[0m"
+echo -e "\e[1;31mmon-$(hostname -s)\e[0m has been \e[1;32madded\e[0m"
