@@ -68,7 +68,6 @@ case "$1" in
         ;;
     monitor)
         if systemctl is-active --quiet nfs-server; then
-            ocf_exit_reason "NFS server is running"
             exit $OCF_SUCCESS
         else
             ocf_exit_reason "NFS server is not running"
