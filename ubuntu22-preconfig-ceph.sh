@@ -5,7 +5,15 @@
 # Dawson Della Valle <ddellavalle@45drives.com>
 # Matthew Hutchinson <mhutchinson@45drives.com>
 
-# Ubuntu 22.04 LTS System Configuration Tweaks
+# Ubuntu 22.04 LTS System Configuration Tweaks for Cluster Nodes
+
+OS=$(cat /etc/os-release | grep -w VERSION_ID)
+
+if [ "$OS" != 'VERSION_ID="22.04"' ] ; then
+        echo "OS is not Ubuntu22.04 LTS"
+        exit
+fi
+
 
 interpreter=$(ps -p $$ | awk '$1 != "PID" {print $(NF)}' | tr -d '()')
 
@@ -162,8 +170,7 @@ update_system() {
     	echo "Invalid response. Please enter '17''18' or '19'."
 		exit 0
 	fi
-	
-	echo "UPDATING SYSTEM"
+
 	# Install 45drives repository
 	# echo "Downloading 45Drives Repo Setup Script"
 	# curl -sSL https://repo.45drives.com/setup -o setup-repo.sh

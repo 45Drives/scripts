@@ -3,8 +3,17 @@
 # Brett Kelly <bkelly@45drives.com>
 # Josh Boudreau <jboudreau@45drives.com>
 # Dawson Della Valle <ddellavalle@45drives.com>
+# Matthew Hutchinson <mhutchinson@45drives.com>
 
-# Ubuntu 20.04 LTS System Configuration Tweaks
+# Ubuntu 20.04 LTS System Configuration Tweaks for Cluster Nodes
+
+OS=$(cat /etc/os-release | grep -w VERSION_ID)
+
+if [ "$OS" != 'VERSION_ID="20.04"' ] ; then
+        echo "OS is not Ubuntu20.04 LTS"
+        exit
+fi
+
 
 interpreter=$(ps -p $$ | awk '$1 != "PID" {print $(NF)}' | tr -d '()')
 
@@ -35,7 +44,7 @@ Welcome to the
       | ##|  ######/| #######/| ##      | ##   \  #/  |  ####### /#######/
       |__/ \______/ |_______/ |__/      |__/    \_/    \_______/|_______/
 
-                                           Ubuntu Preconfiguration Script.
+                                           Ubuntu20 Preconfiguration Script.
 
     This will set up the root login password, enable root login over SSH,
 add the 45Drives apt repository, replace systemd-networkd with network-manager,
@@ -146,9 +155,23 @@ EOF
 update_system() {
 	local res
 	## Update system
-	# Install 45drives repository
-	echo "UPDATING SYSTEM"
+	# Install Ceph repo 
+	wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
 
+	read -p "What version of Ceph are you using? (15/16/17): " response
+
+	if [[ "$response" == "17" ]]; then
+    	apt-add-repository 'deb https://download.ceph.com/debian-octopus/ jammy main'
+	elif [[ "$response" == "18" ]]; then
+    	apt-add-repository 'deb https://download.ceph.com/debian-pacific/ jammy main'
+	elif [[ "$response" == "19" ]]; then
+    	apt-add-repository 'deb https://download.ceph.com/debian-quincy/ jammy main'	
+	else
+    	echo "Invalid response. Please enter '15''16' or '17'."
+		exit 0
+	fi
+
+	# Install 45drives repository
 	echo "Downloading 45Drives Repo Setup Script"
 	curl -sSL https://repo.45drives.com/setup -o setup-repo.sh
 

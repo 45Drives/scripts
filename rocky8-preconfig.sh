@@ -1,5 +1,21 @@
 #!/bin/bash
 
+# Matthew Hutchinson <mhutchinson@45drives.com>
+
+
+# Rocky 8 System Configuration Tweaks
+
+
+ID=$(grep -w ID= /etc/os-release | cut -d= -f2 | tr -d '"')
+Platform=$(grep -w PLATFORM_ID= /etc/os-release | cut -d= -f2 | tr -d '"')
+
+# Check if the OS is Rocky Linux 8
+if [[ "$ID" != "rocky" || "$Platform" != "platform:el8" ]]; then
+    echo "OS is not Rocky8 Linux"
+    exit 1
+fi
+
+
 interpreter=$(ps -p $$ | awk '$1 != "PID" {print $(NF)}' | tr -d '()')
 
 if [ "$interpreter" != "bash" ]; then
@@ -29,9 +45,9 @@ Welcome to the
       | ##|  ######/| #######/| ##      | ##   \  #/  |  ####### /#######/
       |__/ \______/ |_______/ |__/      |__/    \_/    \_______/|_______/
 
-                                           Rocky Preconfiguration Script.
+                                           Rocky8 Preconfiguration Script.
 
-    This script will install zfs, cockpit. Houston UI will be 
+    This script will install epel-release, zfs, cockpit and add our repos. Houston UI will be 
     configured with our latest tools and packages. 
 
     
@@ -52,8 +68,58 @@ EOF
 	return 0
 }
 
+setup_45drives_repo() {
+    local res
+    #Install 45Drives Repository
+    echo "Downloading 45Drives Repo Setup Script"
+    curl -sSL https://repo.45drives.com/setup -o setup-repo.sh
+
+    res=$?
+	if [[ $res != 0 ]]; then
+		echo "Failed to download repo setup script! (https://repo.45drives.com/setup)"
+		exit $res
+	fi
+
+	echo "Running 45Drives Repo Setup Script"
+	bash setup-repo.sh
+    res=$?
+    if [[ $res != 0 ]]; then
+		echo "Failed to run the setup script! (https://repo.45drives.com/setup)"
+		exit $res
+	fi
+	
+    return 0
+}
+
+
+install_epel_release() {
+    local res
+    echo "Installing epel-release"
+    dnf install epel-release -y 
+
+    res=$? 
+    
+    if [[ $res != 0 ]]; then 
+        echo "epel-release install failed!"
+        exit $res
+    fi
+    return 0
+}
+
 install_zfs() {
     local res
+
+    echo "Pulling down ZFS packages"
+    source /etc/os-release
+
+    dnf install -y https://zfsonlinux.org/epel/zfs-release-2-3$(rpm --eval "%{dist}").noarch.rpm
+    
+    res=$?
+    if [[ $res != 0 ]]; then  
+        echo "ZFS package install failed!"
+        exit $res
+    fi
+
     echo "Installing ZFS & kernel-devel"
     dnf install -y kernel-devel zfs
 
@@ -97,8 +163,8 @@ houston_configuration() {
     echo "Installing Cockpit and Modules"
     dnf -y install dnf-plugins-core
     dnf config-manager --set-enabled powertools
-    dnf install -y cockpit cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-machines \
-        cockpit-sosreport cockpit-storaged cockpit-scheduler cockpit-zfs
+    dnf install -y cockpit cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities \
+        cockpit-machines cockpit-sosreport cockpit-storaged cockpit-scheduler cockpit-zfs
     res=$?
     if [[ $res != 0 ]]; then
         echo "Error Installing Cockpit"
@@ -128,7 +194,7 @@ update_system() {
     local res
 
     echo "Updating system"
-    dnf update -y
+    dnf update --nobest -y
     res=$?
 
     if [[ $res != 0 ]]; then 
@@ -150,12 +216,12 @@ setup_done() {
 
 progress=""
 
-if [[ -f ~/.rocky-preconfig.progress ]]; then
-	progress=$(cat ~/.rocky-preconfig.progress)
+if [[ -f .rocky-preconfig.progress ]]; then
+	progress=$(cat .rocky-preconfig.progress)
 fi
 
 if [[ $progress != "" ]]; then
-	echo "Found progress from previous time running this script. (~/~/.rocky-preconfig.progress)"
+	echo "Found progress from previous time running this script. ($PWD/.rocky-preconfig.progress)"
 	echo "1. Continue from last successful step."
 	echo "2. Start from beginning."
 	echo "3. Exit. (default)"
@@ -181,30 +247,41 @@ case $progress in
 		;& # fallthrough
 	0)
 		echo "################################################################################"
-		install_zfs
-		echo 1 > ~/.rocky-preconfig.progress
+		setup_45drives_repo
+		echo 1 > .rocky-preconfig.progress
 		;&
+
     1)
 		echo "################################################################################"
-		selinux_permissive
-		echo 2 > ~/.rocky-preconfig.progress
+		install_epel_release
+		echo 2 > .rocky-preconfig.progress
 		;&
-    2)
+	2)
 		echo "################################################################################"
-		houston_configuration
-		echo 3 > ~/.rocky-preconfig.progress
+		install_zfs
+		echo 3 > .rocky-preconfig.progress
 		;&
     3)
 		echo "################################################################################"
-		update_system
-		echo 4 > ~/.rocky-preconfig.progress
+		selinux_permissive
+		echo 4 > .rocky-preconfig.progress
 		;&
     4)
 		echo "################################################################################"
-		setup_done
-		echo 5 > ~/.rocky-preconfig.progress
+		houston_configuration
+		echo 5 > .rocky-preconfig.progress
 		;&
-    4)
+    5)
+		echo "################################################################################"
+		update_system
+		echo 6 > .rocky-preconfig.progress
+		;&
+    6)
+		echo "################################################################################"
+		setup_done
+		echo 7 > .rocky-preconfig.progress
+		;&
+    7)
 		echo "Setup successfully finished the previous time running this script."
 		;;
 	

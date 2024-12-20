@@ -6,6 +6,14 @@
 
 # Ubuntu 20.04 LTS System Configuration Tweaks
 
+OS=$(cat /etc/os-release | grep -w VERSION_ID)
+
+if [ "$OS" != 'VERSION_ID="20.04"' ] ; then
+        echo "OS is not Ubuntu20"
+        exit
+fi
+
+
 interpreter=$(ps -p $$ | awk '$1 != "PID" {print $(NF)}' | tr -d '()')
 
 if [ "$interpreter" != "bash" ]; then
