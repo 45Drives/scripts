@@ -171,26 +171,32 @@ update_system() {
 		exit 0
 	fi
 
+	apt update -y
+	apt install ceph -y
+
+	# Force fix of pacakge conflict 
+	sudo dpkg --force-all -i /var/cache/apt/archives/containers-common_100%3a1-22_all.deb
+
 	# Install 45drives repository
-	# echo "Downloading 45Drives Repo Setup Script"
-	# curl -sSL https://repo.45drives.com/setup -o setup-repo.sh
+	echo "Downloading 45Drives Repo Setup Script"
+	curl -sSL https://repo.45drives.com/setup -o setup-repo.sh
 
-	# res=$?
-	# if [[ $res != 0 ]]; then
-	# 	echo "Failed to download repo setup script! (https://repo.45drives.com/setup)"
-	# 	exit $res
-	# fi
+	res=$?
+	if [[ $res != 0 ]]; then
+	echo "Failed to download repo setup script! (https://repo.45drives.com/setup)"
+	exit $res
+	fi
 
-	# echo "Running 45Drives Repo Setup Script"
+	echo "Running 45Drives Repo Setup Script"
 
-	# bash setup-repo.sh
+	bash setup-repo.sh
 	
-    # res=$?
+    res=$?
 	
-    # if [[ $res != 0 ]]; then
-	# 	echo "Failed to run the setup script! (https://repo.45drives.com/setup)"
-	# 	exit $res
-	# fi
+    if [[ $res != 0 ]]; then
+	echo "Failed to run the setup script! (https://repo.45drives.com/setup)"
+	exit $res
+	fi
 
 	# apt upgrade
 	echo "Upgrading packages"
@@ -307,8 +313,7 @@ add_cockpit() {
 		exit $res
 	fi
 	
-	apt install -y cockpit 
-	#cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-machines cockpit-sosreport realmd tuned udisks2-lvm2 samba winbind nfs-kernel-server nfs-client 45drives-tools cockpit-scheduler cockpit-zfs
+	apt install -y cockpit cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-machines cockpit-sosreport realmd tuned udisks2-lvm2 samba winbind nfs-kernel-server nfs-client 45drives-tools cockpit-scheduler cockpit-zfs
 	
     res=$?
 	
