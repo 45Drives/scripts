@@ -127,8 +127,7 @@ EOF
         exit
     fi
     
-# Install Ceph Packages
-dnf install ceph ceph-radosgw ceph-mds ceph-mgr-dashboard -y
+
 
     #Install 45Drives Repository
     # echo "Downloading 45Drives Repo Setup Script"
@@ -213,6 +212,8 @@ update_system() {
 
     echo "Updating system"
     dnf update --nobest -y
+    # Install Ceph Packages
+    dnf install ceph ceph-radosgw ceph-mds ceph-mgr-dashboard -y
     res=$?
 
     if [[ $res != 0 ]]; then 
