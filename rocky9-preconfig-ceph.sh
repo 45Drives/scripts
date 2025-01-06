@@ -126,7 +126,9 @@ EOF
         echo "Invalid Selection, Please enter '17''18' or '19'"
         exit
     fi
-
+    
+# Install Ceph Packages
+dnf install ceph ceph-radosgw ceph-mds ceph-mgr-dashboard -y
 
     #Install 45Drives Repository
     # echo "Downloading 45Drives Repo Setup Script"
