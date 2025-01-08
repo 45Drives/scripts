@@ -1,0 +1,10 @@
+[Unit]
+Description=Runs ZFS scrub check (all pools) weekly
+
+[Timer]
+# Every Sunday at 3:00 AM
+OnCalendar=Sun *-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,6 @@
+[Unit]
+Description=ZFS scrub checker (all pools)
+
+[Service]
+Type=oneshot
+ExecStart=/opt/45drives/tools/zfs-scrub-check.sh
