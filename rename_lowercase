@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+
+# Josh Boudreau <jboudreau@45drives.com> 2025-01-15
+
+from pathlib import Path
+from argparse import ArgumentParser
+from typing import List, Union
+
+
+def prompt_yn(question: str, default: Union[bool, None] = None):
+    if default is None:
+        prompt = " [y/n] "
+    elif default:
+        prompt = " [Y/n] "
+    else:
+        prompt = " [y/N] "
+
+    while True:
+        resp = input(question + prompt).lower()
+        if resp == "" and default is not None:
+            return default
+        elif resp in ["y", "ye", "yes"]:
+            return True
+        elif resp in ["n", "no"]:
+            return False
+        else:
+            print("Please respond with 'yes' or 'no'")
+
+
+def make_lowercase(path: Path):
+    return path.with_name(path.name.lower())
+
+
+def resolve_duplicate_name(path: Path):
+    i = 1
+    new_path = Path(path)
+    while new_path.exists():
+        new_path = path.with_stem(path.stem + f"({i})")
+        i += 1
+    return new_path
+
+
+def do_rename(path: Path, new_path: Path):
+    path.rename(new_path)
+
+
+def recursive_rename(path: Path, dry_run: bool = False, quiet: bool = False):
+    if path.is_dir():
+        for child in path.iterdir():
+            recursive_rename(child, dry_run)
+    new_path = make_lowercase(path)
+    if new_path == path:
+        return
+    new_path = resolve_duplicate_name(new_path)
+    if not quiet:
+        print(f"- {path}")
+        print(f"+ {new_path}")
+        print()
+    if not dry_run:
+        do_rename(path, new_path)
+
+
+def recursive_rename_all(paths: List[Path], **kwargs):
+    for path in paths:
+        recursive_rename(path, **kwargs)
+
+
+def main():
+    parser = ArgumentParser(
+        description="Recursively rename all files and subdirectories to be lowercase"
+    )
+
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        default=False,
+        help="Do not confirm before renaming",
+    )
+    parser.add_argument(
+        "-d",
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Only print changes then exit without actually performing rename",
+    )
+
+    parser.add_argument("path", metavar="PATH", nargs="+", type=Path)
+
+    args = parser.parse_args()
+
+    if not args.force:
+        recursive_rename_all(args.path, dry_run=True)
+
+    if args.dry_run or not args.force and not prompt_yn("Are the above changes OK?"):
+        return
+
+    for path in args.path:
+        recursive_rename(Path(path).absolute())
+
+
+if __name__ == "__main__":
+    main()
