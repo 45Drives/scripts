@@ -31,6 +31,10 @@ for link in "$VDEV_DIR"/*; do
     continue
   fi
 
+  if [[ "$realdev" =~ [0-9]$ ]]; then
+    continue
+  fi
+
   echo "======================================================="
   echo -e "SMART Information for alias:  \e[32m$(basename "$link")\e[0m"
   echo -e "Physical device resolved to:  \e[32m$realdev\e[0m"
