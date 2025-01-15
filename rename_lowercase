@@ -41,28 +41,35 @@ def resolve_duplicate_name(path: Path):
 
 
 def do_rename(path: Path, new_path: Path):
+    if new_path.exists():
+        raise RuntimeError(f"path exists: {new_path}")
     path.rename(new_path)
 
 
-def recursive_rename(path: Path, dry_run: bool = False, quiet: bool = False):
+def recursive_rename(path: Path, dry_run: bool = False, quiet: bool = False) -> int:
+    change_count = 0
     if path.is_dir():
         for child in path.iterdir():
-            recursive_rename(child, dry_run)
+            change_count += recursive_rename(child, dry_run)
     new_path = make_lowercase(path)
     if new_path == path:
-        return
+        return change_count
     new_path = resolve_duplicate_name(new_path)
+    change_count += 1
     if not quiet:
         print(f"- {path}")
         print(f"+ {new_path}")
         print()
     if not dry_run:
         do_rename(path, new_path)
+    return change_count
 
 
-def recursive_rename_all(paths: List[Path], **kwargs):
+def recursive_rename_all(paths: List[Path], **kwargs) -> int:
+    change_count = 0
     for path in paths:
-        recursive_rename(path, **kwargs)
+        change_count += recursive_rename(path, **kwargs)
+    return change_count
 
 
 def main():
@@ -89,14 +96,21 @@ def main():
 
     args = parser.parse_args()
 
-    if not args.force:
-        recursive_rename_all(args.path, dry_run=True)
+    change_count = None
 
-    if args.dry_run or not args.force and not prompt_yn("Are the above changes OK?"):
+    if not args.force:
+        change_count = recursive_rename_all(args.path, dry_run=True)
+    
+    if change_count == 0:
+        print("no changes")
+
+    if args.dry_run or change_count == 0 or not args.force and not prompt_yn("Are the above changes OK?"):
         return
 
     for path in args.path:
-        recursive_rename(Path(path).absolute())
+        change_count = recursive_rename(Path(path).absolute())
+    
+    print(f"renamed {change_count} files/directories")
 
 
 if __name__ == "__main__":
