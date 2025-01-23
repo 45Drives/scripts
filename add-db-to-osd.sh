@@ -99,7 +99,7 @@ DB_DEVICE_SIZE_BYTES=$(blockdev --getsize64 $DB_DEVICE)
 # Check if LVM info is already present on DB_DEVICE
 
 # check with wipefs that device has LVM data present
-DB_DEVICE_SIGNATURE=$(wipefs "$DB_DEVICE" --json | jq -r '.signatures | .[0].type')
+DB_DEVICE_SIGNATURE=$(wipefs "$DB_DEVICE" --json | jq -r '.signatures | .[0].type // empty')
 # If this is empty the disk is assumed new.
 # If this is LVM2_member the disk is assumed to already have a db lv present it
 # If anything else the disk is assumed to have something else on it and should be wiped. Quit with warning
