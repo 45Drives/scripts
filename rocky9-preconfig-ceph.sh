@@ -8,8 +8,8 @@ ID=$(grep -w ID= /etc/os-release | cut -d= -f2 | tr -d '"')
 Platform=$(grep -w PLATFORM_ID= /etc/os-release | cut -d= -f2 | tr -d '"')
 
 # Check if the OS is Rocky Linux 9
-if [[ "$ID" != "rocky" || "$Platform" != "platform:el9" ]]; then
-    echo "OS is not Rocky9 Linux"
+if [[ "$ID" != "rocky" && "$ID" != "rhel" || "$Platform" != "platform:el9" ]]; then
+    echo "OS is not Rocky9 or Rhel9 Linux"
     exit 1
 fi
 

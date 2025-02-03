@@ -8,8 +8,8 @@ ID=$(grep -w ID= /etc/os-release | cut -d= -f2 | tr -d '"')
 Platform=$(grep -w PLATFORM_ID= /etc/os-release | cut -d= -f2 | tr -d '"')
 
 # Check if the OS is Rocky Linux 8
-if [[ "$ID" != "rocky" || "$Platform" != "platform:el8" ]]; then
-    echo "OS is not Rocky8 Linux"
+if [[ "$ID" != "rocky" && "$ID" != "rhel" || "$Platform" != "platform:el8" ]]; then
+    echo "OS is not Rocky8 or Rhel8 Linux"
     exit 1
 fi
 
@@ -45,7 +45,7 @@ Welcome to the
 
                                            Rocky8 Preconfiguration Script.
 
-    This script will install epel-release, zfs, cockpit and add our repos. Houston UI will be 
+    This script will install epel-release, cockpit and add our repos. Houston UI will be 
     configured with our latest tools and packages. 
 
     
