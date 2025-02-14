@@ -1,4 +1,7 @@
 #/bin/bash
+#rocky 8 domain join
+
+set -e
 
 # Function to display usage
 usage() {

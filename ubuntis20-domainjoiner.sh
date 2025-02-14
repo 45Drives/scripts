@@ -1,6 +1,8 @@
 #/bin/bash
 ##ubuntis 20 domain joiner extraordainer
 
+set -e
+
 # Function to display usage
 usage() {
   echo "Usage: $0 --hostname HOSTNAME --user USERNAME --realm REALM"
