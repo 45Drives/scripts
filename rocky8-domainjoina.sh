@@ -49,10 +49,19 @@ REALM="${REALM^^}"
 echo "Username: $USERNAME"
 echo "Realm:    $REALM"
 
+echo "Installing prerequisite packages: realmd, samba, krb5-user....."
 dnf install realmd oddjob-mkhomedir oddjob samba-winbind-clients samba-winbind samba-common-tools samba-winbind-krb5-locator samba
-hostnamectl set-hostname hostname.45service.local
+echo "setting hostname to:" $HOSTNAME.$REALM
+hostnamectl set-hostname $HOSTNAME.$REALM
+echo "Backing up existing samba conf to:" /etc/samba/smb.conf.$currentTimestamp.bak
 currentTimestamp=`date +%y-%m-%d-%H:%M:%S`
 mv /etc/samba/smb.conf /etc/samba/smb.conf.$currentTimestamp.bak
+echo "Validating we can discover the domain....."
+realm discover $REALM
+echo "Joining the domain....."
 realm join --user=ballison --membership-software=samba --client-software=winbind --server-software=active-directory 45SERVICE.LOCAL
+echo "Outputting domain join validation....."
+realm list
+echo "Configuring smb.conf to use net registry"
 echo include = registry >> smb.conf
 systemctl enable --now smb
