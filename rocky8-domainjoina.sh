@@ -62,7 +62,7 @@ mv /etc/samba/smb.conf /etc/samba/smb.conf.$currentTimestamp.bak
 echo "Validating we can discover the domain....."
 realm discover $REALM
 echo "Joining the domain....."
-realm join --user=ballison --membership-software=samba --client-software=winbind --server-software=active-directory 45SERVICE.LOCAL
+realm join --user=$USERNAME --membership-software=samba --client-software=winbind --server-software=active-directory $REALM
 echo "Outputting domain join validation....."
 realm list
 echo "Configuring smb.conf to use net registry"

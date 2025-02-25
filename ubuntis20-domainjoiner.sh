@@ -79,5 +79,5 @@ cat <<EOF
 	dns_lookup_realm = false
 	dns_lookup_kdc = true
 EOF
-pam-auth-update --enable mkhomedir
+#pam-auth-update --enable mkhomedir
 systemctl enable --now smbd
