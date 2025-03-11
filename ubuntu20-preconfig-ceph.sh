@@ -160,12 +160,12 @@ update_system() {
 
 	read -p "What version of Ceph are you using? (15/16/17): " response
 
-	if [[ "$response" == "17" ]]; then
-    	apt-add-repository 'deb https://download.ceph.com/debian-octopus/ jammy main'
-	elif [[ "$response" == "18" ]]; then
-    	apt-add-repository 'deb https://download.ceph.com/debian-pacific/ jammy main'
-	elif [[ "$response" == "19" ]]; then
-    	apt-add-repository 'deb https://download.ceph.com/debian-quincy/ jammy main'	
+	if [[ "$response" == "15" ]]; then
+    	apt-add-repository 'deb https://download.ceph.com/debian-octopus/ focal main'
+	elif [[ "$response" == "16" ]]; then
+    	apt-add-repository 'deb https://download.ceph.com/debian-pacific/ focal main'
+	elif [[ "$response" == "17" ]]; then
+    	apt-add-repository 'deb https://download.ceph.com/debian-quincy/ focal main'	
 	else
     	echo "Invalid response. Please enter '15''16' or '17'."
 		exit 0
