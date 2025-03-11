@@ -4,6 +4,10 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
 
+START_TIME_FILE = "/tmp/health_check_start_time"
+with open(START_TIME_FILE, "w") as f:
+    f.write(str(subprocess.check_output("date +%s.%N", shell=True).decode().strip()))
+
 # Function to execute Bash script and capture JSON output
 def get_system_report():
     try:
@@ -27,13 +31,13 @@ app = dash.Dash(__name__)
 
 # Layout
 app.layout = html.Div(children=[
-    html.H1("System Health Dashboard"),
+    html.H1("System Health Dashboard", style={"textAlign": "center"}),
     html.Div(id="system-info", style={
         "background-color": "#333", "color": "white",
         "padding": "15px", "border-radius": "5px",
-        "width": "50%", "margin": "auto", "font-size": "18px"
+        "width": "25%","marginLeft": "0px", "font-size": "18px"
     }),
-    dcc.Interval(id="interval-component", interval=1000, n_intervals=0)
+    dcc.Interval(id="interval-component", n_intervals=0)
 ])
 
 # Callback to update system info

@@ -1,15 +1,5 @@
 #!/bin/bash
 
-if [[ -z "$SCRIPT_START_TIME" ]]; then
-    export SCRIPT_START_TIME=$(date +%s.%N)
-fi
-
-# Get the current time
-CURRENT_TIME=$(date +%s.%N)
-
-# Calculate elapsed time with 9 decimal places
-duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
-
 # Generate system information
 filename="$(hostname)_report.json"  
 if command -v zfs &> /dev/null; then
@@ -20,7 +10,31 @@ else
     tool_version="Unknown"
 fi
 platform=$(lsb_release -d | awk -F'\t' '{print $2}')
-start_time=$(date -u +"%Y-%m-%dT%H:%M:%S")
+
+START_TIME_FILE="/tmp/health_check_start_time"
+
+# If start time file doesn't exist OR contains an invalid value, reset it
+if [[ ! -f "$START_TIME_FILE" ]]; then
+    echo "$(date +%s.%N)" > "$START_TIME_FILE"
+fi
+
+# Read stored start time
+SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
+
+# Get the current time
+CURRENT_TIME=$(date +%s.%N)
+
+# Calculate elapsed time with 9 decimal places
+duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
+
+# If duration is too large (indicating an old start time), reset it
+if (( $(echo "$duration > 10000" | bc -l) )); then
+    echo "$(date +%s.%N)" > "$START_TIME_FILE"
+    SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
+    duration="0.000000000"
+fi
+
+start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
 # Dummy test results (Replace with actual logic)
 total_checks=500
