@@ -8,10 +8,10 @@ from dash.dependencies import Input, Output
 def get_system_report():
     try:
         result = subprocess.run(
-            ["./health_check_script.sh"],  # Run the Bash script
+            ["./health_check_script.sh"],  
             capture_output=True, text=True, check=True
         )
-        return json.loads(result.stdout)  # Convert output to JSON
+        return json.loads(result.stdout) 
     except Exception as e:
         print(f"Error executing script: {e}")
         return {
@@ -33,7 +33,7 @@ app.layout = html.Div(children=[
         "padding": "15px", "border-radius": "5px",
         "width": "50%", "margin": "auto", "font-size": "18px"
     }),
-    dcc.Interval(id="interval-component", interval=5000, n_intervals=0)
+    dcc.Interval(id="interval-component", interval=1000, n_intervals=0)
 ])
 
 # Callback to update system info

@@ -1,5 +1,15 @@
 #!/bin/bash
 
+if [[ -z "$SCRIPT_START_TIME" ]]; then
+    export SCRIPT_START_TIME=$(date +%s.%N)
+fi
+
+# Get the current time
+CURRENT_TIME=$(date +%s.%N)
+
+# Calculate elapsed time with 9 decimal places
+duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
+
 # Generate system information
 filename="$(hostname)_report.json"  
 if command -v zfs &> /dev/null; then
@@ -17,7 +27,6 @@ total_checks=500
 passed=$(shuf -i 200-400 -n 1)
 failed=$((total_checks - passed))
 not_applicable=$(shuf -i 10-50 -n 1)
-duration=$(shuf -i 1-10 -n 1)  # Simulating a process time
 
 # Get CPU and RAM info
 total_cores=$(nproc)
