@@ -1,7 +1,12 @@
 #!/bin/bash
 
+# Harmin Patel
+# Date created: 10 March 2025
+# 45Drives
+
 # Generate system information
 filename="$(hostname)_report.json"  
+
 if command -v zfs &> /dev/null; then
     tool_version=$(zfs --version | head -n 1 | awk '{print $2}' | cut -d'-' -f1)
 elif command -v lsb_release &> /dev/null; then
@@ -9,25 +14,16 @@ elif command -v lsb_release &> /dev/null; then
 else
     tool_version="Unknown"
 fi
+
 platform=$(lsb_release -d | awk -F'\t' '{print $2}')
 
 START_TIME_FILE="/tmp/health_check_start_time"
-
-# If start time file doesn't exist OR contains an invalid value, reset it
 if [[ ! -f "$START_TIME_FILE" ]]; then
     echo "$(date +%s.%N)" > "$START_TIME_FILE"
 fi
-
-# Read stored start time
 SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-
-# Get the current time
 CURRENT_TIME=$(date +%s.%N)
-
-# Calculate elapsed time with 9 decimal places
 duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
-
-# If duration is too large (indicating an old start time), reset it
 if (( $(echo "$duration > 10000" | bc -l) )); then
     echo "$(date +%s.%N)" > "$START_TIME_FILE"
     SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
@@ -35,6 +31,14 @@ if (( $(echo "$duration > 10000" | bc -l) )); then
 fi
 
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
+
+# Get Disk usage (in use and free)
+disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
+disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
+
+# Get RAM usage (in use and free)
+ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
+ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
 
 # Dummy test results (Replace with actual logic)
 total_checks=500
@@ -44,13 +48,11 @@ not_applicable=$(shuf -i 10-50 -n 1)
 
 # Get CPU and RAM info
 total_cores=$(nproc)
-ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
-disk_usage=$(df -h --total | grep 'total' | awk '{print $5}' | sed 's/%//')
 
 # Get Network Information
 ip_address=$(hostname -I | awk '{print $1}')
 default_gateway=$(ip route | grep default | awk '{print $3}')
-network_speed="Unknown"  # Placeholder (use ethtool if needed)
+network_speed="Unknown"  
 
 # Print JSON directly to the output
 cat <<EOF
@@ -69,7 +71,9 @@ cat <<EOF
   "system": {
     "total_cores": $total_cores,
     "ram_usage_percent": $ram_usage,
-    "disk_usage_percent": $disk_usage
+    "ram_free_percent": $ram_free,
+    "disk_usage_percent": $disk_usage,
+    "disk_free_percent": $disk_free
   },
   "network": {
     "ip_address": "$ip_address",

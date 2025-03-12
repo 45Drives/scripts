@@ -1,5 +1,6 @@
 import subprocess
 import json
+import plotly.graph_objs as go
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
@@ -15,42 +16,80 @@ def get_system_report():
             ["./health_check_script.sh"],  
             capture_output=True, text=True, check=True
         )
-        return json.loads(result.stdout) 
+        data = json.loads(result.stdout.strip())
+
+        # Check if 'system' exists and is a dictionary
+        if not isinstance(data.get("system"), dict):
+            data["system"] = {}
+        return data
+
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        return {"system": {}}
+
     except Exception as e:
         print(f"Error executing script: {e}")
-        return {
-            "filename": "Error",
-            "tool_version": "N/A",
-            "platform": "N/A",
-            "duration": "N/A",
-            "start_time": "N/A"
-        }
+        return {"system": {}}
 
-# Dash app
 app = dash.Dash(__name__)
 
 # Layout
 app.layout = html.Div(children=[
     html.H1("System Health Dashboard", style={"textAlign": "center"}),
-    html.Div(id="system-info", style={
-        "background-color": "#333", "color": "white",
-        "padding": "15px", "border-radius": "5px",
-        "width": "25%","marginLeft": "0px", "font-size": "18px"
-    }),
+    html.Div([
+        # System Info Container
+        html.Div(id="system-info", style={
+            "background-color": "#333", "color": "white", "padding": "15px", "border-radius": "5px", "width": "28%", "font-size": "18px",  "marginTop": "100px", "marginRight": "20px", "display": "flex", "flexDirection": "column", "alignItems": "flex-start" 
+        }),
+
+        # Pie Charts Container
+        html.Div([
+            dcc.Graph(id="disk-usage-pie", style={"width": "48%", "display": "inline-block"}),
+            dcc.Graph(id="ram-usage-pie", style={"width": "48%", "display": "inline-block"})
+        ], style={"display": "flex", "justifyContent": "space-between", "width": "75%"})
+    ], style={"display": "flex", "alignItems": "flex-start"}), 
     dcc.Interval(id="interval-component", n_intervals=0)
 ])
 
-# Callback to update system info
-@app.callback(Output("system-info", "children"), Input("interval-component", "n_intervals"))
+@app.callback([Output("system-info", "children"), Output("ram-usage-pie", "figure"), Output("disk-usage-pie", "figure")], Input("interval-component", "n_intervals"))
 def update_info(_):
     data = get_system_report()
-    return html.Div([
-        html.P(f"Filename: {data['filename']}"),
-        html.P(f"Tool Version: {data['tool_version']}"),
-        html.P(f"Platform: {data['platform']}"),
-        html.P(f"Duration: {data['duration']} seconds"),
-        html.P(f"Start Time: {data['start_time']}")
+    system_data = data.get("system", {})
+
+    ram_usage = float(system_data.get("ram_usage_percent", 0))
+    ram_free = 100 - ram_usage
+
+    disk_usage = float(system_data.get("disk_usage_percent", 0))
+    disk_free = 100 - disk_usage
+
+    system_info = html.Div([
+        html.P(f"Filename: {data.get('filename', 'N/A')}"),
+        html.P(f"Tool Version: {data.get('tool_version', 'N/A')}"),
+        html.P(f"Platform: {data.get('platform', 'N/A')}"),
+        html.P(f"Duration: {data.get('duration', 'N/A')} seconds"),
+        html.P(f"Start Time: {data.get('start_time', 'N/A')}")
     ])
+
+    disk_fig = go.Figure(data=[go.Pie(
+        labels=["In Use", "Free"],
+        values=[disk_usage, disk_free],
+        marker=dict(colors=["#FF0000", "#00FF00"]),  # Red for used, Green for free
+        textinfo="percent", 
+        hoverinfo="label+percent" 
+    )])
+    disk_fig.update_layout(title="Storage Usage")
+
+    # RAM Usage Pie Chart
+    ram_fig = go.Figure(data=[go.Pie(
+        labels=["In Use", "Free"],
+        values=[ram_usage, ram_free],
+        marker=dict(colors=["#FF0000", "#00FF00"]),  # Red for used, Green for free
+        textinfo="percent",  
+        hoverinfo="label+percent"
+    )])
+    ram_fig.update_layout(title="RAM Usage")
+
+    return system_info, ram_fig, disk_fig
 
 # Run the Server
 if __name__ == '__main__':
