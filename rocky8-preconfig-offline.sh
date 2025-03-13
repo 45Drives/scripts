@@ -106,7 +106,7 @@ houston_configuration() {
     echo "Installing Cockpit and Modules"
     dnf -y install dnf-plugins-core
     dnf config-manager --set-enabled powertools
-    dnf install -y cockpit cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-machines \
+    dnf install -y cockpit cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware \
         cockpit-sosreport cockpit-storaged cockpit-scheduler cockpit-zfs
     res=$?
     if [[ $res != 0 ]]; then

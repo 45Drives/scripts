@@ -308,7 +308,7 @@ add_cockpit() {
 	fi
 	
 	apt install -y cockpit cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities \
-		cockpit-machines cockpit-sosreport realmd tuned udisks2-lvm2 samba winbind nfs-kernel-server nfs-client 45drives-tools cockpit-scheduler 
+		cockpit-sosreport realmd tuned udisks2-lvm2 samba winbind nfs-kernel-server nfs-client 45drives-tools cockpit-scheduler 
 	
     res=$?
 	
