@@ -40,14 +40,45 @@ disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
 ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
 ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
 
+# Get Total Cores & Threads
+total_cores=$(lscpu | awk '/^Core\(s\) per socket:/ {print $4}')
+sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
+threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
+
+# Ensure values exist, otherwise set defaults
+if [[ -z "$total_cores" || -z "$sockets" ]]; then
+    total_cores=$(nproc --all)
+    sockets=1  # Assume 1 socket if unknown
+fi
+if [[ -z "$threads_per_core" ]]; then
+    threads_per_core=1  # Assume 1 if missing
+fi
+
+total_cores=$((total_cores * sockets))  # Adjust for multi-socket CPUs
+total_threads=$((total_cores * threads_per_core))  # Adjust for SMT/Hyperthreading
+
+# Get CPU usage percentage using mpstat
+cpu_idle=$(mpstat 1 1 | awk '/Average/ {print $NF}')
+cpu_usage=$(awk "BEGIN {printf \"%.2f\", 100 - $cpu_idle}")
+
+# Estimate threads and cores in use based on CPU load
+threads_in_use=$(awk "BEGIN {printf \"%.0f\", ($cpu_usage * $total_threads / 100)}")
+threads_free=$((total_threads - threads_in_use))
+
+cores_in_use=$(awk "BEGIN {printf \"%.0f\", ($cpu_usage * $total_cores / 100)}")
+cores_free=$((total_cores - cores_in_use))
+
+# Ensure values don't go negative
+threads_in_use=$((threads_in_use < 0 ? 0 : threads_in_use))
+threads_free=$((threads_free < 0 ? 0 : threads_free))
+cores_in_use=$((cores_in_use < 0 ? 0 : cores_in_use))
+cores_free=$((cores_free < 0 ? 0 : cores_free))
+
 # Dummy test results (Replace with actual logic)
 total_checks=500
 passed=$(shuf -i 200-400 -n 1)
 failed=$((total_checks - passed))
 not_applicable=$(shuf -i 10-50 -n 1)
-
-# Get CPU and RAM info
-total_cores=$(nproc)
 
 # Get Network Information
 ip_address=$(hostname -I | awk '{print $1}')
@@ -70,6 +101,11 @@ cat <<EOF
   },
   "system": {
     "total_cores": $total_cores,
+    "total_threads": $total_threads,
+    "threads_in_use": $threads_in_use,
+    "threads_free": $threads_free,
+    "cores_in_use": $cores_in_use,
+    "cores_free": $cores_free,
     "ram_usage_percent": $ram_usage,
     "ram_free_percent": $ram_free,
     "disk_usage_percent": $disk_usage,
