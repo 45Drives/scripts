@@ -3,9 +3,9 @@
 OS=$(cat /etc/os-release | grep -w NAME)
 
 if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
-        dnf install ceph-osd ceph-volume
+        dnf install ceph ceph-osd ceph-volume
 elif [ "$OS" == 'NAME="Ubuntu"' ]; then
-        apt install ceph-osd ceph-volume
+        apt install ceph ceph-osd ceph-volume
 else
         echo "OS is not Ubuntu or Rocky Linux"
         exit
