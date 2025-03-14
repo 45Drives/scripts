@@ -51,23 +51,29 @@ app.layout = html.Div(children=[
 
     html.Div([
         html.Div(id="cpu-info", style={
-           "background-color": "#333", "color": "white", "padding": "15px", "border-radius": "5px", "width": "13%", "font-size": "18px", "marginLeft": "0px", "marginRight": "20px", "display": "flex", "flexDirection": "column", "alignItems": "flex-start"  
-        })
-    ], style={"display": "flex", "justifyContent": "center"}),
+           "background-color": "#333", "color": "white", "padding": "15px", "border-radius": "5px", "width": "13%", "font-size": "18px", "marginTop": "90px", "marginRight": "20px", "display": "flex", "flexDirection": "column", "alignItems": "flex-start"  
+        }),
 
-    dcc.Interval(id="interval-component", n_intervals=0)
+        dcc.Graph(id="cpu-cores-threads-pie", style={"width": "30%", "display": "inline-block"})
+    ], style={"display": "flex", "alignItems": "flex-start", "justifyContent": "center"}),
+
+    dcc.Interval(id="interval-component", interval=1200, n_intervals=0, max_intervals=-1)
 ])
 
-@app.callback([Output("system-info", "children"), Output("cpu-info", "children"), Output("ram-usage-pie", "figure"), Output("disk-usage-pie", "figure")], Input("interval-component", "n_intervals"))
+@app.callback([Output("system-info", "children"), Output("cpu-info", "children"), Output("ram-usage-pie", "figure"), Output("disk-usage-pie", "figure"), 
+               Output("cpu-cores-threads-pie", "figure")], Input("interval-component", "n_intervals"), prevent_initial_call=False)
 def update_info(_):
     data = get_system_report()
     system_data = data.get("system", {})
 
+    disk_usage = float(system_data.get("disk_usage_percent", 0))
+    disk_free = 100 - disk_usage
+
     ram_usage = float(system_data.get("ram_usage_percent", 0))
     ram_free = 100 - ram_usage
 
-    disk_usage = float(system_data.get("disk_usage_percent", 0))
-    disk_free = 100 - disk_usage
+    total_cores = int(system_data.get("total_cores", 0))
+    total_threads = int(system_data.get("total_threads", 0))
 
     total_cores = system_data.get("total_cores", "N/A")
     total_threads = system_data.get("total_threads", "N/A")
@@ -93,6 +99,7 @@ def update_info(_):
         html.P(f"Cores Free: {cores_free}")
     ])
 
+    # Storage Usage Pie Chart
     disk_fig = go.Figure(data=[go.Pie(
         labels=["In Use", "Free"],
         values=[disk_usage, disk_free],
@@ -112,7 +119,17 @@ def update_info(_):
     )])
     ram_fig.update_layout(title="RAM Usage")
 
-    return system_info, cpu_info ,ram_fig, disk_fig
+    # Cores vs Threads Pie Chart
+    cpu_fig = go.Figure(data=[go.Pie(
+        labels=["Cores", "Threads"],
+        values=[total_cores, total_threads], 
+        marker=dict(colors=["#FF0000", "#0000FF"]),  # Red for cores, Blue for threads
+        textinfo="value",  
+        hoverinfo="label+value",
+    )])
+    cpu_fig.update_layout(title="Cores vs Threads")
+
+    return system_info, cpu_info ,ram_fig, disk_fig, cpu_fig
 
 # Run the Server
 if __name__ == '__main__':
