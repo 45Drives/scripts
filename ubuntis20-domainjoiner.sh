@@ -69,7 +69,7 @@ realm join --user=$USERNAME --membership-software=samba --client-software=winbin
 echo "Outputting domain join validation....."
 realm list
 echo "Configuring smb.conf to use net registry"
-echo include = registry >> /etc/samba/smb.conf
+echo "include = registry" >> /etc/samba/smb.conf
 echo "Updating /etc/nsswitch.conf to use winbind"
 sed -i -E '/^(passwd|group):/ s/\bsss\b/winbind/g' /etc/nsswitch.conf
 echo "Configuring /etc/krb.conf"

@@ -66,5 +66,5 @@ realm join --user=$USERNAME --membership-software=samba --client-software=winbin
 echo "Outputting domain join validation....."
 realm list
 echo "Configuring smb.conf to use net registry"
-echo include = registry >> smb.conf
+echo "include = registry" >> /etc/samba/smb.conf
 systemctl enable --now smb
