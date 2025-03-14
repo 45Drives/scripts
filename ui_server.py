@@ -36,6 +36,18 @@ app = dash.Dash(__name__)
 # Layout
 app.layout = html.Div(children=[
     html.H1("System Health Dashboard", style={"textAlign": "center"}),
+    html.Button("Export", id="export-btn", n_clicks=0, style={
+        "backgroundColor": "#007BFF",  # Blue color
+        "color": "white",  # White text
+        "border": "none",
+        "padding": "10px 20px",
+        "borderRadius": "5px",
+        "cursor": "pointer",
+        "fontSize": "16px",
+        "marginBottom": "20px",
+        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+    }),
+    dcc.Download(id="download-system-report"),
     html.Div([
         # System Info Container
         html.Div(id="system-info", style={
@@ -131,6 +143,14 @@ def update_info(_):
 
     return system_info, cpu_info ,ram_fig, disk_fig, cpu_fig
 
+# Export button
+@app.callback(Output("download-system-report", "data"), Input("export-btn", "n_clicks"),prevent_initial_call=True)
+def export_report(n_clicks):
+    if n_clicks > 0:
+        data = get_system_report()
+        export_filename = data.get("filename", "system_report.json")  # Use dynamic filename
+        return dict(content=json.dumps(data, indent=4), filename=export_filename)
+    
 # Run the Server
 if __name__ == '__main__':
     app.run_server(host="0.0.0.0", port=8080, debug=False)
