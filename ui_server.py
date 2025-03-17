@@ -9,7 +9,6 @@ START_TIME_FILE = "/tmp/health_check_start_time"
 with open(START_TIME_FILE, "w") as f:
     f.write(str(subprocess.check_output("date +%s.%N", shell=True).decode().strip()))
 
-# Function to execute Bash script and capture JSON output
 def get_system_report():
     try:
         result = subprocess.run(
@@ -18,7 +17,6 @@ def get_system_report():
         )
         data = json.loads(result.stdout.strip())
 
-        # Check if 'system' exists and is a dictionary
         if not isinstance(data.get("system"), dict):
             data["system"] = {}
         return data
@@ -37,15 +35,7 @@ app = dash.Dash(__name__)
 app.layout = html.Div(children=[
     html.H1("System Health Dashboard", style={"textAlign": "center"}),
     html.Button("Export", id="export-btn", n_clicks=0, style={
-        "backgroundColor": "#007BFF",  # Blue color
-        "color": "white",  # White text
-        "border": "none",
-        "padding": "10px 20px",
-        "borderRadius": "5px",
-        "cursor": "pointer",
-        "fontSize": "16px",
-        "marginBottom": "20px",
-        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+        "backgroundColor": "#007BFF", "color": "white", "border": "none", "padding": "10px 20px", "borderRadius": "5px", "cursor": "pointer", "fontSize": "16px", "marginBottom": "20px", "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
     }),
     dcc.Download(id="download-system-report"),
     html.Div([

@@ -32,15 +32,15 @@ fi
 
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
-# Get Disk usage (in use and free)
+# Disk usage (in use and free)
 disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
 disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
 
-# Get RAM usage (in use and free)
+# RAM usage (in use and free)
 ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
 ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
 
-# Get Total Cores & Threads
+# Total Cores & Threads
 total_cores=$(lscpu | awk '/^Core\(s\) per socket:/ {print $4}')
 sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
 threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
@@ -48,10 +48,10 @@ threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
 # Ensure values exist, otherwise set defaults
 if [[ -z "$total_cores" || -z "$sockets" ]]; then
     total_cores=$(nproc --all)
-    sockets=1  # Assume 1 socket if unknown
+    sockets=1  
 fi
 if [[ -z "$threads_per_core" ]]; then
-    threads_per_core=1  # Assume 1 if missing
+    threads_per_core=1  
 fi
 
 total_cores=$((total_cores * sockets))  # Adjust for multi-socket CPUs
