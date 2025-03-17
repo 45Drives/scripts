@@ -2,7 +2,7 @@ import subprocess
 import json
 import plotly.graph_objs as go
 import dash
-from dash import dcc, html
+from dash import dcc, html, ClientsideFunction
 from dash.dependencies import Input, Output
 
 START_TIME_FILE = "/tmp/health_check_start_time"
@@ -36,6 +36,9 @@ app.layout = html.Div(children=[
     html.H1("System Health Dashboard", style={"textAlign": "center"}),
     html.Button("Export", id="export-btn", n_clicks=0, style={
         "backgroundColor": "#007BFF", "color": "white", "border": "none", "padding": "10px 20px", "borderRadius": "5px", "cursor": "pointer", "fontSize": "16px", "marginBottom": "20px", "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+    }),
+    html.Button("Print", id="print-btn", n_clicks=0, style={
+        "backgroundColor": "#007BFF", "color": "white", "border": "none", "marginLeft": "10px", "padding": "10px 20px", "borderRadius": "5px", "cursor": "pointer", "fontSize": "16px", "marginBottom": "20px", "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
     }),
     dcc.Download(id="download-system-report"),
     html.Div([
@@ -140,7 +143,12 @@ def export_report(n_clicks):
         data = get_system_report()
         export_filename = data.get("filename", "system_report.json")  # Use dynamic filename
         return dict(content=json.dumps(data, indent=4), filename=export_filename)
-    
+
+app.clientside_callback(
+    ClientsideFunction(namespace="print", function_name="printPage"),
+    Input("print-btn", "n_clicks")
+)
+
 # Run the Server
 if __name__ == '__main__':
     app.run_server(host="0.0.0.0", port=8080, debug=False)
