@@ -141,6 +141,69 @@ fi
 # 10) Read/Write Test
 touch /tmp/testfile && echo "test" > /tmp/testfile && rm /tmp/testfile && record_check "Read/Write Test" "passed" || record_check "Read/Write Test" "failed"
 
+# 11) Check Serial Number  
+serial_number=$(cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "not_available")
+if [[ "$serial_number" != "not_available" ]]; then
+    record_check "System Serial Number Available" "passed"
+else
+    record_check "System Serial Number Available" "failed"
+fi
+
+# 12) Check Amount of RAM  
+ram_total=$(free -m | awk '/Mem:/ {print $2}')  
+if [[ -n "$ram_total" ]]; then  
+    record_check "RAM Reporting Available" "passed"  
+else  
+    record_check "RAM Reporting Available" "failed"  
+fi  
+
+# 13) Check System Install Date (System Age)  
+install_date=$(ls -lt --time=cr / | tail -1 | awk '{print $6, $7, $8}')  
+if [[ -n "$install_date" ]]; then  
+    record_check "System Age Available" "passed"  
+else  
+    record_check "System Age Available" "not_reviewed"  # Often needs manual check  
+fi  
+
+# 14) Check Link Speed for eth0 (or main NIC)  
+link_speed=$(ethtool eth0 2>/dev/null | grep "Speed" | awk '{print $2}')  
+if [[ -n "$link_speed" ]]; then  
+    record_check "Network Link Speed Detected" "passed"  
+else  
+    record_check "Network Link Speed Detected" "not_applicable"  
+fi  
+
+# 15) Test Email Alert (Manual)  
+record_check "Test Email Alert" "not_reviewed"  
+
+# 16) AlertManager UI Verification (Manual)  
+record_check "AlertManager UI Verification" "not_reviewed"    
+
+# 17) Winbind Running Check (if domain joined)  
+if systemctl is-active --quiet winbind; then  
+    record_check "Winbind Running" "passed"  
+else  
+    record_check "Winbind Running" "not_applicable"  
+fi  
+
+# 18) Global MacOS Config Check (Manual Config Audit)  
+record_check "Global MacOS Config" "not_reviewed"    
+
+# 19) File Sharing Permissions Check (Manual Audit)  
+record_check "File Sharing Permissions" "not_reviewed"    
+
+# 20) Windows ACL with Linux/MacOS Support (Manual)  
+record_check "Windows ACL Config" "not_reviewed"    
+
+# 21) Recalls or Power Harness Defect (Manual Lookup)  
+record_check "Hardware Recall Check" "not_reviewed"    
+
+# 22) SnapShield Last FireDrill Check (Manual)  
+record_check "SnapShield Last FireDrill" "not_reviewed"    
+
+# 23) Recommend Actions Summary (to be generated post-checks) (Manual)
+record_check "Recommendation Summary" "not_reviewed"  
+
 check_results="${check_results%,}]"
 
 cat <<EOF
@@ -157,7 +220,6 @@ cat <<EOF
     "not_reviewed": $not_reviewed,
     "total_checks": $total_checks
   },
-  "check_results": $check_results,
   "system": {
     "total_cores": $total_cores,
     "total_threads": $total_threads,
@@ -169,6 +231,7 @@ cat <<EOF
     "ram_free_percent": $ram_free,
     "disk_usage_percent": $disk_usage,
     "disk_free_percent": $disk_free
-  }
+  },
+  "check_results": $check_results
 }
 EOF
