@@ -43,12 +43,14 @@ sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
 threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
 total_cores=$((total_cores * sockets))
 total_threads=$((total_cores * threads_per_core))
-
 cpu_idle=$(mpstat 1 1 | awk '/Average/ {print $NF}')
 cpu_usage=$(awk "BEGIN {printf \"%.2f\", 100 - $cpu_idle}")
-threads_in_use=$(awk "BEGIN {printf \"%.0f\", ($cpu_usage * $total_threads / 100)}")
+threads_in_use=$(ps -eL -o stat | grep -E 'R|D' | wc -l)
 threads_free=$((total_threads - threads_in_use))
-cores_in_use=$(awk "BEGIN {printf \"%.0f\", ($cpu_usage * $total_cores / 100)}")
+if [ $threads_free -lt 0 ]; then
+  threads_free=0
+fi
+cores_in_use=$(mpstat -P ALL 1 1 | awk '$3 ~ /^[0-9]+$/ { if ($12 < 95) count++ } END { print count }')
 cores_free=$((total_cores - cores_in_use))
 
 # Check counters and result storage
@@ -77,6 +79,8 @@ record_check() {
 }
 
 # CHECKS
+
+# 1) Check System Uptime
 uptime_check=$(uptime -p)
 if [[ -n "$uptime_check" ]]; then
     record_check "System Uptime" "passed"
@@ -84,6 +88,7 @@ else
     record_check "System Uptime" "failed"
 fi
 
+# 2) Check Drive Age
 drive_hours=$(smartctl -A /dev/sda | awk '/Power_On_Hours/ {print $10}')
 if [[ -n "$drive_hours" ]]; then
     record_check "Drive Age Available" "passed"
@@ -91,6 +96,7 @@ else
     record_check "Drive Age Available" "failed"
 fi
 
+# 3) Check Storage System
 if command -v zfs &> /dev/null; then
     zpool status &> /dev/null && record_check "ZFS Status" "passed" || record_check "ZFS Status" "failed"
 elif command -v ceph &> /dev/null; then
@@ -99,6 +105,7 @@ else
     record_check "Storage System Check" "not_applicable"
 fi
 
+# 4) Check Snapshots
 snapshots_enabled=$(zfs list -t snapshot 2>/dev/null | wc -l)
 if [[ "$snapshots_enabled" -gt 0 ]]; then
     record_check "Snapshots Enabled" "passed"
@@ -106,9 +113,13 @@ else
     record_check "Snapshots Enabled" "failed"
 fi
 
+# 5) AlertManager Status
 systemctl is-active --quiet alertmanager && record_check "AlertManager Running" "passed" || record_check "AlertManager Running" "failed"
+
+# 6) Network Connectivity
 ping -c 2 8.8.8.8 &> /dev/null && record_check "Network Connectivity" "passed" || record_check "Network Connectivity" "failed"
 
+# 7) Packet Errors
 packet_errors=$(netstat -i | awk '{if ($5 > 0) print $0}')
 if [[ -z "$packet_errors" ]]; then
     record_check "Packet Errors" "passed"
@@ -116,8 +127,10 @@ else
     record_check "Packet Errors" "failed"
 fi
 
+# 8) iSCSI Fix Applied
 [[ -f /etc/systemd/system/iscsi.service ]] && record_check "iSCSI Fix Applied" "passed" || record_check "iSCSI Fix Applied" "not_applicable"
 
+# 9) System Updates Check
 updates_available=$(apt list --upgradable 2>/dev/null | wc -l)
 if [[ "$updates_available" -gt 1 ]]; then
     record_check "Updates Pending" "failed"
@@ -125,12 +138,11 @@ else
     record_check "Updates Pending" "passed"
 fi
 
+# 10) Read/Write Test
 touch /tmp/testfile && echo "test" > /tmp/testfile && rm /tmp/testfile && record_check "Read/Write Test" "passed" || record_check "Read/Write Test" "failed"
 
-# Close check_results JSON array
 check_results="${check_results%,}]"
 
-# FINAL JSON output
 cat <<EOF
 {
   "filename": "$filename",

@@ -84,12 +84,8 @@ def update_info(_):
 
     disk_usage = float(system_data.get("disk_usage_percent", 0))
     disk_free = 100 - disk_usage
-
     ram_usage = float(system_data.get("ram_usage_percent", 0))
     ram_free = 100 - ram_usage
-
-    total_cores = int(system_data.get("total_cores", 0))
-    total_threads = int(system_data.get("total_threads", 0))
 
     total_cores = system_data.get("total_cores", "N/A")
     total_threads = system_data.get("total_threads", "N/A")
@@ -157,15 +153,7 @@ def update_info(_):
             html.Span(f"Passed: {passed}", style={"fontSize": "20px", "fontWeight": "bold"})
         ], style={"display": "flex", "alignItems": "center"})
     ], style={
-        "background-color": "#28a745",
-        "color": "white",
-        "padding": "20px",
-        "border-radius": "8px",
-        "width": "22%",
-        "display": "flex",  # <-- Add this
-        "justifyContent": "center",  # <-- Center horizontally
-        "alignItems": "center",  # <-- Center vertically
-        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+        "background-color": "#28a745", "color": "white", "padding": "20px", "border-radius": "8px", "width": "22%", "display": "flex", "justifyContent": "center", "alignItems": "center", "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
     })
 
     failed_card = html.Div([
@@ -174,15 +162,7 @@ def update_info(_):
             html.Span(f"Failed: {failed}", style={"fontSize": "20px", "fontWeight": "bold"})
         ], style={"display": "flex", "alignItems": "center"})
     ], style={
-        "background-color": "#dc3545",  # red
-        "color": "white",
-        "padding": "20px",
-        "border-radius": "8px",
-        "width": "22%",
-        "display": "flex",
-        "justifyContent": "center",
-        "alignItems": "center",
-        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+        "background-color": "#dc3545", "color": "white", "padding": "20px", "border-radius": "8px", "width": "22%", "display": "flex", "justifyContent": "center", "alignItems": "center", "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
     })
 
     not_applicable_card = html.Div([
@@ -191,15 +171,7 @@ def update_info(_):
             html.Span(f"Not Applicable: {not_applicable}", style={"fontSize": "20px", "fontWeight": "bold"})
         ], style={"display": "flex", "alignItems": "center"})
     ], style={
-        "background-color": "#007bff",  # blue
-        "color": "white",
-        "padding": "20px",
-        "border-radius": "8px",
-        "width": "22%",
-        "display": "flex",
-        "justifyContent": "center",
-        "alignItems": "center",
-        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+        "background-color": "#007bff", "color": "white", "padding": "20px", "border-radius": "8px", "width": "22%", "display": "flex", "justifyContent": "center", "alignItems": "center", "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
     })
 
     not_reviewed_card = html.Div([
@@ -208,15 +180,7 @@ def update_info(_):
             html.Span(f"Not Reviewed: {not_reviewed}", style={"fontSize": "20px", "fontWeight": "bold"})
         ], style={"display": "flex", "alignItems": "center"})
     ], style={
-        "background-color": "#ffc107",  # yellow
-        "color": "white",
-        "padding": "20px",
-        "border-radius": "8px",
-        "width": "22%",
-        "display": "flex",
-        "justifyContent": "center",
-        "alignItems": "center",
-        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+        "background-color": "#ffc107", "color": "white", "padding": "20px", "border-radius": "8px", "width": "22%", "display": "flex", "justifyContent": "center", "alignItems": "center", "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
     })
 
     checks_summary = html.Div([
