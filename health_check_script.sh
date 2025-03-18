@@ -4,7 +4,6 @@
 # Date created: 10 March 2025
 # 45Drives
 
-# Generate system information
 filename="$(hostname)_report.json"  
 
 if command -v zfs &> /dev/null; then
@@ -32,60 +31,106 @@ fi
 
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
-# Disk usage (in use and free)
+# Disk & RAM usage
 disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
 disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
-
-# RAM usage (in use and free)
 ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
 ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
 
-# Total Cores & Threads
+# CPU cores/threads
 total_cores=$(lscpu | awk '/^Core\(s\) per socket:/ {print $4}')
 sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
 threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
+total_cores=$((total_cores * sockets))
+total_threads=$((total_cores * threads_per_core))
 
-# Ensure values exist, otherwise set defaults
-if [[ -z "$total_cores" || -z "$sockets" ]]; then
-    total_cores=$(nproc --all)
-    sockets=1  
-fi
-if [[ -z "$threads_per_core" ]]; then
-    threads_per_core=1  
-fi
-
-total_cores=$((total_cores * sockets))  # Adjust for multi-socket CPUs
-total_threads=$((total_cores * threads_per_core))  # Adjust for SMT/Hyperthreading
-
-# Get CPU usage percentage using mpstat
 cpu_idle=$(mpstat 1 1 | awk '/Average/ {print $NF}')
 cpu_usage=$(awk "BEGIN {printf \"%.2f\", 100 - $cpu_idle}")
-
-# Estimate threads and cores in use based on CPU load
 threads_in_use=$(awk "BEGIN {printf \"%.0f\", ($cpu_usage * $total_threads / 100)}")
 threads_free=$((total_threads - threads_in_use))
-
 cores_in_use=$(awk "BEGIN {printf \"%.0f\", ($cpu_usage * $total_cores / 100)}")
 cores_free=$((total_cores - cores_in_use))
 
-# Ensure values don't go negative
-threads_in_use=$((threads_in_use < 0 ? 0 : threads_in_use))
-threads_free=$((threads_free < 0 ? 0 : threads_free))
-cores_in_use=$((cores_in_use < 0 ? 0 : cores_in_use))
-cores_free=$((cores_free < 0 ? 0 : cores_free))
+# Check counters and result storage
+total_checks=0
+passed=0
+failed=0
+not_applicable=0
+not_reviewed=0
+check_results="["
 
-# Dummy test results (Replace with actual logic)
-total_checks=500
-passed=$(shuf -i 200-400 -n 1)
-failed=$((total_checks - passed))
-not_applicable=$(shuf -i 10-50 -n 1)
+# Function to run and record checks
+record_check() {
+    local name="$1"
+    local result="$2"
+    check_results+="{\"check\": \"$name\", \"status\": \"$result\"},"
+    if [[ "$result" == "passed" ]]; then
+        passed=$((passed+1))
+    elif [[ "$result" == "failed" ]]; then
+        failed=$((failed+1))
+    elif [[ "$result" == "not_applicable" ]]; then
+        not_applicable=$((not_applicable+1))
+    elif [[ "$result" == "not_reviewed" ]]; then
+        not_reviewed=$((not_reviewed+1))
+    fi
+    total_checks=$((total_checks+1))
+}
 
-# Get Network Information
-ip_address=$(hostname -I | awk '{print $1}')
-default_gateway=$(ip route | grep default | awk '{print $3}')
-network_speed="Unknown"  
+# CHECKS
+uptime_check=$(uptime -p)
+if [[ -n "$uptime_check" ]]; then
+    record_check "System Uptime" "passed"
+else
+    record_check "System Uptime" "failed"
+fi
 
-# Print JSON directly to the output
+drive_hours=$(smartctl -A /dev/sda | awk '/Power_On_Hours/ {print $10}')
+if [[ -n "$drive_hours" ]]; then
+    record_check "Drive Age Available" "passed"
+else
+    record_check "Drive Age Available" "failed"
+fi
+
+if command -v zfs &> /dev/null; then
+    zpool status &> /dev/null && record_check "ZFS Status" "passed" || record_check "ZFS Status" "failed"
+elif command -v ceph &> /dev/null; then
+    ceph -s &> /dev/null && record_check "Ceph Status" "passed" || record_check "Ceph Status" "failed"
+else
+    record_check "Storage System Check" "not_applicable"
+fi
+
+snapshots_enabled=$(zfs list -t snapshot 2>/dev/null | wc -l)
+if [[ "$snapshots_enabled" -gt 0 ]]; then
+    record_check "Snapshots Enabled" "passed"
+else
+    record_check "Snapshots Enabled" "failed"
+fi
+
+systemctl is-active --quiet alertmanager && record_check "AlertManager Running" "passed" || record_check "AlertManager Running" "failed"
+ping -c 2 8.8.8.8 &> /dev/null && record_check "Network Connectivity" "passed" || record_check "Network Connectivity" "failed"
+
+packet_errors=$(netstat -i | awk '{if ($5 > 0) print $0}')
+if [[ -z "$packet_errors" ]]; then
+    record_check "Packet Errors" "passed"
+else
+    record_check "Packet Errors" "failed"
+fi
+
+[[ -f /etc/systemd/system/iscsi.service ]] && record_check "iSCSI Fix Applied" "passed" || record_check "iSCSI Fix Applied" "not_applicable"
+
+updates_available=$(apt list --upgradable 2>/dev/null | wc -l)
+if [[ "$updates_available" -gt 1 ]]; then
+    record_check "Updates Pending" "failed"
+else
+    record_check "Updates Pending" "passed"
+fi
+
+touch /tmp/testfile && echo "test" > /tmp/testfile && rm /tmp/testfile && record_check "Read/Write Test" "passed" || record_check "Read/Write Test" "failed"
+
+# Close check_results JSON array
+check_results="${check_results%,}]"
+
+# FINAL JSON output
 cat <<EOF
 {
   "filename": "$filename",
@@ -97,8 +142,10 @@ cat <<EOF
     "passed": $passed,
     "failed": $failed,
     "not_applicable": $not_applicable,
+    "not_reviewed": $not_reviewed,
     "total_checks": $total_checks
   },
+  "check_results": $check_results,
   "system": {
     "total_cores": $total_cores,
     "total_threads": $total_threads,
@@ -110,11 +157,6 @@ cat <<EOF
     "ram_free_percent": $ram_free,
     "disk_usage_percent": $disk_usage,
     "disk_free_percent": $disk_free
-  },
-  "network": {
-    "ip_address": "$ip_address",
-    "default_gateway": "$default_gateway",
-    "network_speed": "$network_speed"
   }
 }
 EOF

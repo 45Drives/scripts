@@ -4,6 +4,7 @@ import plotly.graph_objs as go
 import dash
 from dash import dcc, html, ClientsideFunction
 from dash.dependencies import Input, Output
+from dash_iconify import DashIconify
 
 START_TIME_FILE = "/tmp/health_check_start_time"
 with open(START_TIME_FILE, "w") as f:
@@ -62,14 +63,24 @@ app.layout = html.Div(children=[
         dcc.Graph(id="cpu-cores-threads-pie", style={"width": "30%", "display": "inline-block"})
     ], style={"display": "flex", "alignItems": "flex-start", "justifyContent": "center"}),
 
-    dcc.Interval(id="interval-component", interval=1200, n_intervals=0, max_intervals=-1)
+    html.Div([
+        html.Div(id="checks-summary", style={
+            "justifyContent": "space-between",
+            "marginTop": "20px",
+            "width": "100%"
+        }),
+
+    ], style={"display": "flex", "flexDirection": "column", "alignItems": "flex-start"}),
+
+    dcc.Interval(id="interval-component", interval=5000, n_intervals=0, max_intervals=-1)
 ])
 
 @app.callback([Output("system-info", "children"), Output("cpu-info", "children"), Output("ram-usage-pie", "figure"), Output("disk-usage-pie", "figure"), 
-               Output("cpu-cores-threads-pie", "figure")], Input("interval-component", "n_intervals"), prevent_initial_call=False)
+               Output("cpu-cores-threads-pie", "figure"), Output("checks-summary", "children") ], Input("interval-component", "n_intervals"), prevent_initial_call=False)
 def update_info(_):
     data = get_system_report()
     system_data = data.get("system", {})
+    status_data = data.get("status", {})
 
     disk_usage = float(system_data.get("disk_usage_percent", 0))
     disk_free = 100 - disk_usage
@@ -134,7 +145,85 @@ def update_info(_):
     )])
     cpu_fig.update_layout(title="Cores vs Threads")
 
-    return system_info, cpu_info ,ram_fig, disk_fig, cpu_fig
+    total_checks = status_data.get("total_checks", 0)
+    passed = status_data.get("passed", 0)
+    failed = status_data.get("failed", 0)
+    not_applicable = status_data.get("not_applicable", 0)
+    not_reviewed = status_data.get("not_reviewed", 0)
+
+    passed_card = html.Div([
+        html.Div([
+            DashIconify(icon="heroicons-solid:check-circle", width=24, style={"marginRight": "8px"}),
+            html.Span(f"Passed: {passed}", style={"fontSize": "20px", "fontWeight": "bold"})
+        ], style={"display": "flex", "alignItems": "center"})
+    ], style={
+        "background-color": "#28a745",
+        "color": "white",
+        "padding": "20px",
+        "border-radius": "8px",
+        "width": "22%",
+        "display": "flex",  # <-- Add this
+        "justifyContent": "center",  # <-- Center horizontally
+        "alignItems": "center",  # <-- Center vertically
+        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+    })
+
+    failed_card = html.Div([
+        html.Div([
+            DashIconify(icon="heroicons-solid:x-circle", width=24, color="white", style={"marginRight": "8px"}),
+            html.Span(f"Failed: {failed}", style={"fontSize": "20px", "fontWeight": "bold"})
+        ], style={"display": "flex", "alignItems": "center"})
+    ], style={
+        "background-color": "#dc3545",  # red
+        "color": "white",
+        "padding": "20px",
+        "border-radius": "8px",
+        "width": "22%",
+        "display": "flex",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+    })
+
+    not_applicable_card = html.Div([
+        html.Div([
+            DashIconify(icon="heroicons-solid:minus-circle", width=24, color="white", style={"marginRight": "8px"}),
+            html.Span(f"Not Applicable: {not_applicable}", style={"fontSize": "20px", "fontWeight": "bold"})
+        ], style={"display": "flex", "alignItems": "center"})
+    ], style={
+        "background-color": "#007bff",  # blue
+        "color": "white",
+        "padding": "20px",
+        "border-radius": "8px",
+        "width": "22%",
+        "display": "flex",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+    })
+
+    not_reviewed_card = html.Div([
+        html.Div([
+            DashIconify(icon="heroicons-solid:exclamation-circle", width=24, color="white", style={"marginRight": "8px"}),
+            html.Span(f"Not Reviewed: {not_reviewed}", style={"fontSize": "20px", "fontWeight": "bold"})
+        ], style={"display": "flex", "alignItems": "center"})
+    ], style={
+        "background-color": "#ffc107",  # yellow
+        "color": "white",
+        "padding": "20px",
+        "border-radius": "8px",
+        "width": "22%",
+        "display": "flex",
+        "justifyContent": "center",
+        "alignItems": "center",
+        "boxShadow": "2px 2px 5px rgba(0, 0, 0, 0.2)"
+    })
+
+    checks_summary = html.Div([
+        passed_card, failed_card, not_applicable_card, not_reviewed_card
+    ], style={"display": "flex", "justifyContent": "space-between", "width": "100%"})
+
+    return system_info, cpu_info ,ram_fig, disk_fig, cpu_fig, checks_summary
 
 # Export button
 @app.callback(Output("download-system-report", "data"), Input("export-btn", "n_clicks"),prevent_initial_call=True)
