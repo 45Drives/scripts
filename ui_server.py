@@ -64,19 +64,18 @@ app.layout = html.Div(children=[
     ], style={"display": "flex", "alignItems": "flex-start", "justifyContent": "center"}),
 
     html.Div([
-        html.Div(id="checks-summary", style={
-            "justifyContent": "space-between",
-            "marginTop": "20px",
-            "width": "100%"
-        }),
-
+        html.Div(id="checks-summary", style={"justifyContent": "space-between", "marginTop": "20px", "width": "100%"}),
     ], style={"display": "flex", "flexDirection": "column", "alignItems": "flex-start"}),
+
+    html.Div([
+        dcc.Graph(id="total-checks-pie", style={"width": "40%", "display": "inline-block"}),
+    ], style={"display": "flex", "justifyContent": "space-between", "width": "75%"}),
 
     dcc.Interval(id="interval-component", interval=5000, n_intervals=0, max_intervals=-1)
 ])
 
 @app.callback([Output("system-info", "children"), Output("cpu-info", "children"), Output("ram-usage-pie", "figure"), Output("disk-usage-pie", "figure"), 
-               Output("cpu-cores-threads-pie", "figure"), Output("checks-summary", "children") ], Input("interval-component", "n_intervals"), prevent_initial_call=False)
+               Output("cpu-cores-threads-pie", "figure"), Output("checks-summary", "children") ], Output("total-checks-pie", "figure"), Input("interval-component", "n_intervals"), prevent_initial_call=False)
 def update_info(_):
     data = get_system_report()
     system_data = data.get("system", {})
@@ -187,7 +186,29 @@ def update_info(_):
         passed_card, failed_card, not_applicable_card, not_reviewed_card
     ], style={"display": "flex", "justifyContent": "space-between", "width": "100%"})
 
-    return system_info, cpu_info ,ram_fig, disk_fig, cpu_fig, checks_summary
+    passed = status_data.get("passed", 0)
+    failed = status_data.get("failed", 0)
+    not_applicable = status_data.get("not_applicable", 0)
+    not_reviewed = status_data.get("not_reviewed", 0)
+    total_checks = status_data.get("total_checks", 0)
+
+    pie_fig = go.Figure(data=[
+        go.Pie(
+            labels=["Passed", "Failed", "Not Applicable", "Not Reviewed"],
+            values=[passed, failed, not_applicable, not_reviewed],
+            hole=0.6,
+            marker=dict(colors=["#28a745", "#dc3545", "#007bff", "#ffc107"]),
+            textinfo="value",
+            hoverinfo="label+value",
+        )
+    ])
+
+    pie_fig.update_layout(
+        title="Status Count",
+        annotations=[dict(text=f"Total: {total_checks}", x=0.5, y=0.5, font_size=20, showarrow=False)]
+    )
+
+    return system_info, cpu_info ,ram_fig, disk_fig, cpu_fig, checks_summary, pie_fig
 
 # Export button
 @app.callback(Output("download-system-report", "data"), Input("export-btn", "n_clicks"),prevent_initial_call=True)
@@ -204,4 +225,4 @@ app.clientside_callback(
 
 # Run the Server
 if __name__ == '__main__':
-    app.run_server(host="0.0.0.0", port=8080, debug=False)
+    app.run_server(host="0.0.0.0", port=7070, debug=False)
