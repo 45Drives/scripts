@@ -68,7 +68,7 @@ app.layout = html.Div(children=[
     ], style={"display": "flex", "flexDirection": "column", "alignItems": "flex-start"}),
 
     html.Div([
-        dcc.Graph(id="total-checks-pie", style={"width": "40%", "display": "inline-block"}),
+        dcc.Graph(id="total-checks-pie", style={"width": "45%", "display": "inline-block"}),
     ], style={"display": "flex", "justifyContent": "space-between", "width": "75%"}),
 
     dcc.Interval(id="interval-component", interval=5000, n_intervals=0, max_intervals=-1)
