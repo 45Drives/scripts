@@ -106,9 +106,31 @@ else
 fi
 
 # 4) Check Snapshots
+print_snapshots_info() {
+    echo "Snapshots Info:"
+    zpools=$(zpool list -H -o name 2>/dev/null)
+    if [[ -z "$zpools" ]]; then
+        echo "No zpools found."
+        return
+    fi
+    for pool in $zpools; do
+        echo "Pool: $pool"
+        snapshots=$(zfs list -H -t snapshot -o name -r $pool 2>/dev/null)
+        if [[ -z "$snapshots" ]]; then
+            echo "No snapshots found for pool: $pool"
+        else
+            for snapshot in $snapshots; do
+                echo "Snapshot: $snapshot"
+            done
+        fi
+        echo ""
+    done
+}
+
 snapshots_enabled=$(zfs list -t snapshot 2>/dev/null | wc -l)
 if [[ "$snapshots_enabled" -gt 0 ]]; then
     record_check "Snapshots Enabled" "passed"
+    print_snapshots_info
 else
     record_check "Snapshots Enabled" "failed"
 fi
