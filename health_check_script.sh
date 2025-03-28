@@ -80,6 +80,7 @@ record_check() {
 
 # CHECKS
 
+# Excel sheet checks
 # 1) Check System Uptime
 uptime_check=$(uptime -p)
 if [[ -n "$uptime_check" ]]; then
@@ -248,6 +249,50 @@ fi
 
 # 23) Recommend Actions Summary (to be generated post-checks or flagged for manual summary)
 record_check "Recommendation Summary" "not_reviewed"
+
+
+# Word document checks
+# Raid status checks
+if command -v zpool &> /dev/null; then
+    zpool status -v > /tmp/zpool_status.txt
+    record_check "ZFS Pool Spec Check (Manual review of /tmp/zpool_status.txt)" "not_reviewed"
+
+    if zpool status | grep -qi "DEGRADED\|FAULTED\|OFFLINE"; then
+        record_check "ZFS Failed Drives Detected" "failed"
+    else
+        record_check "ZFS Failed Drives Detected" "passed"
+    fi
+
+    errors=$(zpool status | grep -E 'errors:|read:|write:|cksum:' | grep -v 'errors: No known data errors' | wc -l)
+    if [[ $errors -gt 0 ]]; then
+        record_check "ZFS Pool Errors Found" "failed"
+    else
+        record_check "ZFS Pool Errors Found" "passed"
+    fi
+
+    if zpool get autotrim | grep -q "on"; then
+        record_check "ZFS Autotrim Enabled" "passed"
+    else
+        record_check "ZFS Autotrim Enabled" "failed"
+    fi
+
+    zpool status > /tmp/zfs_raid_layout.txt
+    record_check "RAID Layout Best Practice (Manual review in /tmp/zfs_raid_layout.txt)" "not_reviewed"
+
+    pool_capacity=$(zpool list -H -o capacity | cut -d'%' -f1)
+    if (( pool_capacity < 80 )); then
+        record_check "ZFS Pool Room for Expansion" "passed"
+    else
+        record_check "ZFS Pool Room for Expansion" "failed"
+    fi
+else
+    record_check "ZFS Pool Spec Check" "not_applicable"
+    record_check "ZFS Failed Drives Detected" "not_applicable"
+    record_check "ZFS Pool Errors Found" "not_applicable"
+    record_check "ZFS Autotrim Enabled" "not_applicable"
+    record_check "RAID Layout Best Practice" "not_applicable"
+    record_check "ZFS Pool Room for Expansion" "not_applicable"
+fi
 
 
 check_results="${check_results%,}]"
