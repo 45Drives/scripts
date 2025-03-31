@@ -250,7 +250,6 @@ fi
 # 23) Recommend Actions Summary (to be generated post-checks or flagged for manual summary)
 record_check "Recommendation Summary" "not_reviewed"
 
-
 # Word document checks
 # Raid status checks
 if command -v zpool &> /dev/null; then
@@ -294,6 +293,80 @@ else
     record_check "ZFS Pool Room for Expansion" "not_applicable"
 fi
 
+# Network Interface Configuration checks
+# 1) Log Network Errors
+error_logs=$(dmesg | grep -iE 'error|fail|link|network')
+if [[ -n "$error_logs" ]]; then
+    echo "$error_logs" > /tmp/network_error_logs.txt
+    record_check "Network Error Logs Detected (review /tmp/network_error_logs.txt)" "not_reviewed"
+else
+    record_check "Network Error Logs" "passed"
+fi
+
+# 2) Bonding Configuration
+if grep -q "bonding" /proc/net/dev; then
+    record_check "Network Bonding Setup" "passed"
+else
+    record_check "Network Bonding Setup" "not_applicable"
+fi
+
+# 3) MTU Setup Check (for eth0)
+mtu_size=$(ip link show eth0 | grep -oP 'mtu \K[0-9]+')
+if [[ -n "$mtu_size" && "$mtu_size" -ge 1500 ]]; then
+    record_check "MTU Size Setup Properly (eth0)" "passed"
+else
+    record_check "MTU Size Setup (eth0)" "failed"
+fi
+
+# 4) Network Driver Installed Check
+if ethtool -i eth0 &> /dev/null; then
+    record_check "Network Driver Installed (eth0)" "passed"
+else
+    record_check "Network Driver Installed (eth0)" "failed"
+fi
+
+# 5) Best Practice Tuning - Manual
+record_check "Network Best Practice Tuning Review" "not_reviewed"
+
+# 6) Iperf Test - Manual Recommendation
+record_check "Iperf Test Between Client and Server" "not_reviewed"
+
+# 7) VLAN Usage Check
+if ip -d link show | grep -q vlan; then
+    record_check "VLANs In Use" "passed"
+else
+    record_check "VLANs In Use" "not_applicable"
+fi
+
+# 8) IPMI Reachability Check (assuming default IP)
+ipmi_ip="192.168.209.220"  # Change as needed
+if ping -c 1 $ipmi_ip &> /dev/null; then
+    record_check "IPMI Reachable" "passed"
+else
+    record_check "IPMI Reachability" "not_reviewed"
+fi
+
+# 9) ethtool Check for All Interfaces
+interfaces=$(ls /sys/class/net | grep -v lo)
+for iface in $interfaces; do
+    ethtool $iface > /tmp/ethtool_$iface.txt 2>/dev/null
+    record_check "Ethtool Output for $iface (Manual Review in /tmp/ethtool_$iface.txt)" "not_reviewed"
+done
+
+# 10) Primary Route Check
+primary_route=$(ip route show default | head -n 1 | awk '{print $3}')
+if [[ -n "$primary_route" ]]; then
+    record_check "Primary Route Detected: $primary_route" "passed"
+else
+    record_check "Primary Route Check" "failed"
+fi
+
+# 11) Possible Packet Loss Detection
+# if ping -c 5 192.168.209.220 | grep -q '0% packet loss'; then
+#     record_check "No Packet Loss Detected" "passed"
+# else
+#     record_check "Packet Loss Detected" "failed"
+# fi
 
 check_results="${check_results%,}]"
 
