@@ -273,9 +273,9 @@ echo
 read -r _ total used free shared buff_cache available <<< $(free -m | awk '/^Mem:/ {print $1, $2, $3, $4, $5, $6, $7}')
 echo "RAM Usage (in MB):"
 echo "------------------"
-echo "Total:        $total MB"
-echo "Used:         $used MB"
-echo "Cache:        $buff_cache MB"
+echo "Total: $total MB"
+echo "Used:  $used MB"
+echo "Cache: $buff_cache MB"
 echo
 
 # Check if sestatus command exists
@@ -331,6 +331,11 @@ done
 
 echo -e "\nCurrent Uptime:"; uptime;
 echo -e "\nReboot History:\n---------------"; last reboot
+
+echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); if [ "$used_swap" -gt 500 ]; then echo -e "\n⚠️  WARNING: High swap usage detected ($used_swap MB)"; fi
+echo
+
+echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; echo -e "\n=== Network Driver Info ==="; for iface in $(ls /sys/class/net | grep -v lo); do echo -e "\nInterface: $iface"; ethtool -i $iface 2>/dev/null; done
 echo
 
 cat <<EOF
