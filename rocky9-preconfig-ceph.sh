@@ -129,25 +129,28 @@ EOF
     
 
 
-    #Install 45Drives Repository
-    # echo "Downloading 45Drives Repo Setup Script"
-    # curl -sSL https://repo.45drives.com/setup -o setup-repo.sh
+#Install 45Drives Repository
+echo "Adding 45Drives Rocky9 Repo"
+cat <<EOF > /etc/yum.repos.d/45drives.repo
+[45drives_stable]
+enabled = 1
+priority = 1
+gpgcheck = 1
+repo_gpgcheck = 1
+baseurl = https://repo.45drives.com/enterprise/rocky/el9/stable
+gpgkey = https://repo.45drives.com/key/gpg.asc
+name = 45Drives EL9 Stable
 
-    # res=$?
-	# if [[ $res != 0 ]]; then
-	# 	echo "Failed to download repo setup script! (https://repo.45drives.com/setup)"
-	# 	exit $res
-	# fi
+[45drives_testing]
+enabled = 0
+priority = 1
+gpgcheck = 1
+repo_gpgcheck = 1
+baseurl = https://repo.45drives.com/enterprise/rocky/el9/testing
+gpgkey = https://repo.45drives.com/key/gpg.asc
+name = 45Drives EL9 Stable
+EOF
 
-	# echo "Running 45Drives Repo Setup Script"
-	# bash setup-repo.sh
-    # res=$?
-    # if [[ $res != 0 ]]; then
-	# 	echo "Failed to run the setup script! (https://repo.45drives.com/setup)"
-	# 	exit $res
-	# fi
-	
-    # return 0
 }
 
 
@@ -180,8 +183,7 @@ houston_configuration() {
     echo "Installing Cockpit and Modules"
     dnf -y install dnf-plugins-core
     dnf config-manager --set-enabled powertools
-    dnf install -y cockpit 
-    #cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-machines cockpit-sosreport cockpit-storaged cockpit-scheduler 
+    dnf install -y cockpit cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-storaged cockpit-scheduler 
     res=$?
     if [[ $res != 0 ]]; then
         echo "Error Installing Cockpit"
