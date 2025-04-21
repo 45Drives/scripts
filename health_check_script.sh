@@ -54,11 +54,6 @@ cores_in_use=$(mpstat -P ALL 1 1 | awk '$3 ~ /^[0-9]+$/ { if ($12 < 95) count++ 
 cores_free=$((total_cores - cores_in_use))
 
 # Excel sheet checks
-
-# 1) Check System Uptime
-echo "System Uptime: $(uptime -p)"
-echo 
-
 # 2) Check Drive Age
 echo "Drive Age (Power_On_Hours for /dev/sdb):"
 smartctl -A /dev/sdb | awk '/Power_On_Hours/ {print $10}'
@@ -100,10 +95,6 @@ echo
 echo -n "AlertManager is-active: "
 systemctl is-active alertmanager
 echo
-
-# 6) Network Connectivity
-# echo "Pinging 8.8.8.8 for network connectivity:"
-# ping -c 2 8.8.8.8
 
 # 7) Packet Errors
 echo "Packet Errors:"
@@ -273,9 +264,9 @@ echo
 read -r _ total used free shared buff_cache available <<< $(free -m | awk '/^Mem:/ {print $1, $2, $3, $4, $5, $6, $7}')
 echo "RAM Usage (in MB):"
 echo "------------------"
-echo "Total:        $total MB"
-echo "Used:         $used MB"
-echo "Cache:        $buff_cache MB"
+echo "Total: $total MB"
+echo "Used:  $used MB"
+echo "Cache: $buff_cache MB"
 echo
 
 # Check if sestatus command exists
@@ -331,6 +322,11 @@ done
 
 echo -e "\nCurrent Uptime:"; uptime;
 echo -e "\nReboot History:\n---------------"; last reboot
+
+echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); if [ "$used_swap" -gt 500 ]; then echo -e "\n⚠️  WARNING: High swap usage detected ($used_swap MB)"; fi
+echo
+
+echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; echo -e "\n=== Network Driver Info ==="; for iface in $(ls /sys/class/net | grep -v lo); do echo -e "\nInterface: $iface"; ethtool -i $iface 2>/dev/null; done
 echo
 
 cat <<EOF
