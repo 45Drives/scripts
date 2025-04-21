@@ -248,6 +248,91 @@ echo "Primary Default Route:"
 ip route show default | head -n 1
 echo
 
+# Hardware perspective checks
+# Check if tuned is installed
+if ! command -v tuned-adm &> /dev/null; then
+    echo "Tuned is not installed on this system."
+    echo
+fi
+
+# Get the current tuned profile
+active_profile=$(tuned-adm active | awk -F": " '/Current active profile/ {print $2}')
+echo "Current Tuned Profile: $active_profile"
+echo
+# Recommend appropriate profiles if not already set
+if [[ "$active_profile" != "network-latency" && "$active_profile" != "throughput-performance" ]]; then
+    echo "Recommended Tuned Profiles:"
+    echo "  - network-latency (for low-latency networking)"
+    echo "  - throughput-performance (for high-bandwidth needs)"
+else
+    echo "Current profile is suitable for network performance tuning."
+fi
+
+# # Capture RAM info using `free`
+echo
+read -r _ total used free shared buff_cache available <<< $(free -m | awk '/^Mem:/ {print $1, $2, $3, $4, $5, $6, $7}')
+echo "RAM Usage (in MB):"
+echo "------------------"
+echo "Total:        $total MB"
+echo "Used:         $used MB"
+echo "Cache:        $buff_cache MB"
+echo
+
+# Check if sestatus command exists
+if ! command -v sestatus &> /dev/null; then
+    echo "SELinux is not installed or sestatus is not available."
+    echo
+fi
+
+# Get the current SELinux mode
+selinux_mode=$(sestatus | awk '/Current mode:/ {print $3}')
+echo "SELinux Mode: $selinux_mode"
+echo
+# Warn if enforcing
+if [[ "$selinux_mode" == "enforcing" ]]; then
+    echo "⚠️ WARNING: SELinux is in enforcing mode. This may interfere with some operations."
+    echo
+fi
+
+# Check if lsdev exists
+if ! command -v lsdev &> /dev/null; then
+    echo "lsdev is not installed. Please install the 'procinfo' or equivalent package."
+fi
+
+# Show concise device summary
+echo "Hardware Device Summary (lsdev -cdt):"
+echo "-------------------------------------"
+lsdev -cdt
+echo 
+
+# Check if smartctl is installed
+if ! command -v smartctl &> /dev/null; then
+    echo "smartctl not found. Please install smartmontools."
+fi
+
+echo "===== Drive SMART Stats Summary ====="
+
+# Loop through all /dev/sdX devices (exclude partitions like /dev/sda1)
+for i in $(ls /dev | grep -i '^sd[a-z]$'); do
+    echo -e "\nDevice: /dev/$i"
+
+    # Try to get slot/vdev label if available
+    if [[ -d /dev/disk/by-vdev ]]; then
+        slot=$(ls -l /dev/disk/by-vdev/ | grep -w "$i" | awk '{print $9}')
+        echo "Slot: ${slot:-Not labeled}"
+    else
+        echo "Slot: (by-vdev mapping not found)"
+    fi
+
+    # Print selected SMART attributes
+    smartctl -x /dev/$i 2>/dev/null | grep -iE \
+        'serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector'
+done
+
+echo -e "\nCurrent Uptime:"; uptime;
+echo -e "\nReboot History:\n---------------"; last reboot
+echo
+
 cat <<EOF
 {
   "filename": "$filename",
