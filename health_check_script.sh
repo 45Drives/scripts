@@ -4,240 +4,240 @@
 # Date created: 10 March 2025
 # 45Drives
 
-filename="$(hostname)_report.json"  
+# filename="$(hostname)_report.json"  
 
-if command -v zfs &> /dev/null; then
-    tool_version=$(zfs --version | head -n 1 | awk '{print $2}' | cut -d'-' -f1)
-elif command -v lsb_release &> /dev/null; then
-    tool_version=$(uname -r | cut -d'-' -f1)  
-else
-    tool_version="Unknown"
-fi
+# if command -v zfs &> /dev/null; then
+#     tool_version=$(zfs --version | head -n 1 | awk '{print $2}' | cut -d'-' -f1)
+# elif command -v lsb_release &> /dev/null; then
+#     tool_version=$(uname -r | cut -d'-' -f1)  
+# else
+#     tool_version="Unknown"
+# fi
 
-platform=$(lsb_release -d | awk -F'\t' '{print $2}')
+# platform=$(lsb_release -d | awk -F'\t' '{print $2}')
 
-START_TIME_FILE="/tmp/health_check_start_time"
-if [[ ! -f "$START_TIME_FILE" ]]; then
-    echo "$(date +%s.%N)" > "$START_TIME_FILE"
-fi
-SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-CURRENT_TIME=$(date +%s.%N)
-duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
-if (( $(echo "$duration > 10000" | bc -l) )); then
-    echo "$(date +%s.%N)" > "$START_TIME_FILE"
-    SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-    duration="0.000000000"
-fi
+# START_TIME_FILE="/tmp/health_check_start_time"
+# if [[ ! -f "$START_TIME_FILE" ]]; then
+#     echo "$(date +%s.%N)" > "$START_TIME_FILE"
+# fi
+# SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
+# CURRENT_TIME=$(date +%s.%N)
+# duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
+# if (( $(echo "$duration > 10000" | bc -l) )); then
+#     echo "$(date +%s.%N)" > "$START_TIME_FILE"
+#     SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
+#     duration="0.000000000"
+# fi
 
-start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
+# start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
-# Disk & RAM usage
-disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
-disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
-ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
-ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
+# # Disk & RAM usage
+# disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
+# disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
+# ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
+# ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
 
-# CPU cores/threads
-total_cores=$(lscpu | awk '/^Core\(s\) per socket:/ {print $4}')
-sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
-threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
-total_cores=$((total_cores * sockets))
-total_threads=$((total_cores * threads_per_core))
-cpu_idle=$(mpstat 1 1 | awk '/Average/ {print $NF}')
-cpu_usage=$(awk "BEGIN {printf \"%.2f\", 100 - $cpu_idle}")
-threads_in_use=$(ps -eL -o stat | grep -E 'R|D' | wc -l)
-threads_free=$((total_threads - threads_in_use))
-if [ $threads_free -lt 0 ]; then
-  threads_free=0
-fi
-cores_in_use=$(mpstat -P ALL 1 1 | awk '$3 ~ /^[0-9]+$/ { if ($12 < 95) count++ } END { print count }')
-cores_free=$((total_cores - cores_in_use))
+# # CPU cores/threads
+# total_cores=$(lscpu | awk '/^Core\(s\) per socket:/ {print $4}')
+# sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
+# threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
+# total_cores=$((total_cores * sockets))
+# total_threads=$((total_cores * threads_per_core))
+# cpu_idle=$(mpstat 1 1 | awk '/Average/ {print $NF}')
+# cpu_usage=$(awk "BEGIN {printf \"%.2f\", 100 - $cpu_idle}")
+# threads_in_use=$(ps -eL -o stat | grep -E 'R|D' | wc -l)
+# threads_free=$((total_threads - threads_in_use))
+# if [ $threads_free -lt 0 ]; then
+#   threads_free=0
+# fi
+# cores_in_use=$(mpstat -P ALL 1 1 | awk '$3 ~ /^[0-9]+$/ { if ($12 < 95) count++ } END { print count }')
+# cores_free=$((total_cores - cores_in_use))
 
-# Excel sheet checks
-# 2) Check Drive Age
-echo "Drive Age (Power_On_Hours for /dev/sdb):"
-smartctl -A /dev/sdb | awk '/Power_On_Hours/ {print $10}'
-echo
-
-# 3) Check Storage System
-if command -v zfs &> /dev/null; then
-    echo "ZFS Status:"
-    zpool status
-    echo
-fi
-
-# Check Ceph Status
-if command -v ceph &> /dev/null; then
-    echo "Ceph Status:" 
-    ceph -s
-    echo
-fi
-
-# 4) Check Snapshots
-echo "Snapshots Info:"
-zpools=$(zpool list -H -o name 2>/dev/null)
-if [[ -z "$zpools" ]]; then
-    echo "No zpools found."
-else
-    for pool in $zpools; do
-        echo "Pool: $pool"
-        snapshots=$(zfs list -H -t snapshot -o name -r $pool 2>/dev/null)
-        if [[ -z "$snapshots" ]]; then
-            echo "  No snapshots found."
-        else
-            echo "$snapshots" | sed 's/^/  /'
-        fi
-    done
-fi
-echo
-
-# 5) AlertManager Status
-echo -n "AlertManager is-active: "
-systemctl is-active alertmanager
-echo
-
-# 7) Packet Errors
-echo "Packet Errors:"
-netstat -i | awk 'NR==1 || $5 > 0'
-echo
-
-# 8) iSCSI Fix Applied
-# iSCSI Fix Applied
-if [[ -f /etc/systemd/system/iscsi.service ]]; then
-    echo "iSCSI Fix is applied (/etc/systemd/system/iscsi.service exists)"
-else
-    echo "iSCSI Fix is not applied"
-fi
-echo
-
-# 9) System Updates Check
-echo "System updates available (apt list --upgradable):"
-apt list --upgradable 2>/dev/null
-echo
-
-# 10) Read/Write Test
-echo "Performing Read/Write Test on /tmp/testfile..."
-touch /tmp/testfile && echo "test" > /tmp/testfile && cat /tmp/testfile && rm /tmp/testfile
-echo
-
-# 11) Check Serial Number 
-echo "System Serial mber:"
-cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "not_available"
-echo
-
-# 12) Check Amount of RAM  
-echo "Total RAM (in MB):"
-free -m | awk '/Mem:/ {print $2}'
-echo
-
-# 13) Check System Install Date (System Age)  
-echo "System Install Date (based on root dir creation):"
-ls -lt --time=cr / | tail -1 | awk '{print $6, $7, $8}'
-echo
-
-# 14) Check Link Speed for eth0 (or main NIC)
-echo "eth0 Link Speed:"
-ethtool eth0 2>/dev/null | grep "Speed" || echo "eth0 not detected"
-echo
-
-# 15) Test Email Alert (Automatic attempt)
-echo "Email config files:"
-grep -H 'mail' /etc/aliases 2>/dev/null
-grep -i 'smtp' /etc/postfix/main.cf 2>/dev/null
-echo
-
-# 16) AlertManager UI Verification
-# echo "Checking if AlertManager is running on port 9093:"
-# netstat -tuln | grep ':9093'
+# # Excel sheet checks
+# # 2) Check Drive Age
+# echo "Drive Age (Power_On_Hours for /dev/sdb):"
+# smartctl -A /dev/sdb | awk '/Power_On_Hours/ {print $10}'
 # echo
 
-# 17) Winbind Running Check (if domain joined)
-echo -n "Winbind service status: "
-systemctl is-active winbind 2>/dev/null || echo "not installed"
-echo
+# # 3) Check Storage System
+# if command -v zfs &> /dev/null; then
+#     echo "ZFS Status:"
+#     zpool status
+#     echo
+# fi
 
-# 18) Global MacOS Config Check (Look for related configs)
-echo "Checking for macOS global config in smb.conf:"
-grep -i 'macos' /etc/samba/smb.conf 2>/dev/null | grep 'global'
-echo
+# # Check Ceph Status
+# if command -v ceph &> /dev/null; then
+#     echo "Ceph Status:" 
+#     ceph -s
+#     echo
+# fi
 
-# 19) File Sharing Permissions Check
-echo "Checking for 'valid users' in smb.conf:"
-grep -i 'valid users' /etc/samba/smb.conf 2>/dev/null
-echo
+# # 4) Check Snapshots
+# echo "Snapshots Info:"
+# zpools=$(zpool list -H -o name 2>/dev/null)
+# if [[ -z "$zpools" ]]; then
+#     echo "No zpools found."
+# else
+#     for pool in $zpools; do
+#         echo "Pool: $pool"
+#         snapshots=$(zfs list -H -t snapshot -o name -r $pool 2>/dev/null)
+#         if [[ -z "$snapshots" ]]; then
+#             echo "  No snapshots found."
+#         else
+#             echo "$snapshots" | sed 's/^/  /'
+#         fi
+#     done
+# fi
+# echo
 
-# 20) Windows ACL with Linux/MacOS Support
-echo "Checking for Windows ACL support in smb.conf:"
-grep -iq 'nt acl support = yes' /etc/samba/smb.conf 2>/dev/null && echo "ACL support enabled"
-echo
+# # 5) AlertManager Status
+# echo -n "AlertManager is-active: "
+# systemctl is-active alertmanager
+# echo
 
-# 22) SnapShield Last FireDrill Check
-echo "Checking for SnapShield fire drill log:"
-cat /var/log/snapshield_firedrill.log 2>/dev/null || echo "No fire drill log found"
-echo
+# # 7) Packet Errors
+# echo "Packet Errors:"
+# netstat -i | awk 'NR==1 || $5 > 0'
+# echo
 
-# Raid status checks
-if command -v zpool &> /dev/null; then
-    # ZFS Failed Drives Detected
-    echo "ZFS Failed Drives Check:"
-    zpool status | grep -iE 'DEGRADED|FAULTED|OFFLINE' || echo "No failed drives detected"
+# # 8) iSCSI Fix Applied
+# # iSCSI Fix Applied
+# if [[ -f /etc/systemd/system/iscsi.service ]]; then
+#     echo "iSCSI Fix is applied (/etc/systemd/system/iscsi.service exists)"
+# else
+#     echo "iSCSI Fix is not applied"
+# fi
+# echo
 
-    # ZFS Pool Errors
-    echo "ZFS Pool Errors:"
-    zpool status | grep -E 'errors:|read:|write:|cksum:'
+# # 9) System Updates Check
+# echo "System updates available (apt list --upgradable):"
+# apt list --upgradable 2>/dev/null
+# echo
 
-    # ZFS Autotrim Enabled
-    echo "ZFS Autotrim Status:"
-    zpool get autotrim
+# # 10) Read/Write Test
+# echo "Performing Read/Write Test on /tmp/testfile..."
+# touch /tmp/testfile && echo "test" > /tmp/testfile && cat /tmp/testfile && rm /tmp/testfile
+# echo
 
-    # ZFS Pool Capacity
-    echo "ZFS Pool Capacity:"
-    zpool list -H -o name,capacity
-fi
+# # 11) Check Serial Number 
+# echo "System Serial mber:"
+# cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "not_available"
+# echo
 
-# Network Interface Configuration checks
-# 1) Log Network Errors
-echo "Kernel Network Errors (dmesg):"
-dmesg | grep -iE 'error|fail|link|network'
-echo
+# # 12) Check Amount of RAM  
+# echo "Total RAM (in MB):"
+# free -m | awk '/Mem:/ {print $2}'
+# echo
 
-# 2) Bonding Configuration
-echo "Network Bonding Interfaces:"
-cat /proc/net/dev | grep 'bond' || echo "No bonding interfaces found"
-echo
+# # 13) Check System Install Date (System Age)  
+# echo "System Install Date (based on root dir creation):"
+# ls -lt --time=cr / | tail -1 | awk '{print $6, $7, $8}'
+# echo
 
-# 3) MTU Setup Check (for eth0)
-echo "eth0 MTU size:"
-ip link show eth0 | grep -oP 'mtu \K[0-9]+'
-echo
+# # 14) Check Link Speed for eth0 (or main NIC)
+# echo "eth0 Link Speed:"
+# ethtool eth0 2>/dev/null | grep "Speed" || echo "eth0 not detected"
+# echo
 
-# 4) Network Driver Installed Check
-echo "Network Driver Info for eth0:"
-ethtool -i eth0 2>/dev/null || echo "No driver info found for eth0"
-echo
+# # 15) Test Email Alert (Automatic attempt)
+# echo "Email config files:"
+# grep -H 'mail' /etc/aliases 2>/dev/null
+# grep -i 'smtp' /etc/postfix/main.cf 2>/dev/null
+# echo
 
-# 7) VLAN Usage Check
-echo "VLAN Interfaces:"
-ip -d link show | grep vlan || echo "No VLAN interfaces found"
-echo
+# # 16) AlertManager UI Verification
+# # echo "Checking if AlertManager is running on port 9093:"
+# # netstat -tuln | grep ':9093'
+# # echo
 
-# 8) IPMI Reachability Check
-ipmi_ip="192.168.209.220"  # Change as needed
-echo "Pinging IPMI ($ipmi_ip):"
-ping -c 1 $ipmi_ip
-echo
+# # 17) Winbind Running Check (if domain joined)
+# echo -n "Winbind service status: "
+# systemctl is-active winbind 2>/dev/null || echo "not installed"
+# echo
 
-# 9) ethtool Check for All Interfaces
-for iface in $(ls /sys/class/net | grep -v lo); do
-    echo "Ethtool Info for $iface:"
-    ethtool $iface 2>/dev/null
-    echo
-done
+# # 18) Global MacOS Config Check (Look for related configs)
+# echo "Checking for macOS global config in smb.conf:"
+# grep -i 'macos' /etc/samba/smb.conf 2>/dev/null | grep 'global'
+# echo
 
-# 10) Primary Route Check
-echo "Primary Default Route:"
-ip route show default | head -n 1
-echo
+# # 19) File Sharing Permissions Check
+# echo "Checking for 'valid users' in smb.conf:"
+# grep -i 'valid users' /etc/samba/smb.conf 2>/dev/null
+# echo
+
+# # 20) Windows ACL with Linux/MacOS Support
+# echo "Checking for Windows ACL support in smb.conf:"
+# grep -iq 'nt acl support = yes' /etc/samba/smb.conf 2>/dev/null && echo "ACL support enabled"
+# echo
+
+# # 22) SnapShield Last FireDrill Check
+# echo "Checking for SnapShield fire drill log:"
+# cat /var/log/snapshield_firedrill.log 2>/dev/null || echo "No fire drill log found"
+# echo
+
+# # Raid status checks
+# if command -v zpool &> /dev/null; then
+#     # ZFS Failed Drives Detected
+#     echo "ZFS Failed Drives Check:"
+#     zpool status | grep -iE 'DEGRADED|FAULTED|OFFLINE' || echo "No failed drives detected"
+
+#     # ZFS Pool Errors
+#     echo "ZFS Pool Errors:"
+#     zpool status | grep -E 'errors:|read:|write:|cksum:'
+
+#     # ZFS Autotrim Enabled
+#     echo "ZFS Autotrim Status:"
+#     zpool get autotrim
+
+#     # ZFS Pool Capacity
+#     echo "ZFS Pool Capacity:"
+#     zpool list -H -o name,capacity
+# fi
+
+# # Network Interface Configuration checks
+# # 1) Log Network Errors
+# echo "Kernel Network Errors (dmesg):"
+# dmesg | grep -iE 'error|fail|link|network'
+# echo
+
+# # 2) Bonding Configuration
+# echo "Network Bonding Interfaces:"
+# cat /proc/net/dev | grep 'bond' || echo "No bonding interfaces found"
+# echo
+
+# # 3) MTU Setup Check (for eth0)
+# echo "eth0 MTU size:"
+# ip link show eth0 | grep -oP 'mtu \K[0-9]+'
+# echo
+
+# # 4) Network Driver Installed Check
+# echo "Network Driver Info for eth0:"
+# ethtool -i eth0 2>/dev/null || echo "No driver info found for eth0"
+# echo
+
+# # 7) VLAN Usage Check
+# echo "VLAN Interfaces:"
+# ip -d link show | grep vlan || echo "No VLAN interfaces found"
+# echo
+
+# # 8) IPMI Reachability Check
+# ipmi_ip="192.168.209.220"  # Change as needed
+# echo "Pinging IPMI ($ipmi_ip):"
+# ping -c 1 $ipmi_ip
+# echo
+
+# # 9) ethtool Check for All Interfaces
+# for iface in $(ls /sys/class/net | grep -v lo); do
+#     echo "Ethtool Info for $iface:"
+#     ethtool $iface 2>/dev/null
+#     echo
+# done
+
+# # 10) Primary Route Check
+# echo "Primary Default Route:"
+# ip route show default | head -n 1
+# echo
 
 # Hardware perspective checks
 # Check if tuned is installed
