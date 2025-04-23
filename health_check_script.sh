@@ -4,54 +4,54 @@
 # Date created: 10 March 2025
 # 45Drives
 
-# filename="$(hostname)_report.json"  
+filename="$(hostname)_report.json"  
 
-# if command -v zfs &> /dev/null; then
-#     tool_version=$(zfs --version | head -n 1 | awk '{print $2}' | cut -d'-' -f1)
-# elif command -v lsb_release &> /dev/null; then
-#     tool_version=$(uname -r | cut -d'-' -f1)  
-# else
-#     tool_version="Unknown"
-# fi
+if command -v zfs &> /dev/null; then
+    tool_version=$(zfs --version | head -n 1 | awk '{print $2}' | cut -d'-' -f1)
+elif command -v lsb_release &> /dev/null; then
+    tool_version=$(uname -r | cut -d'-' -f1)  
+else
+    tool_version="Unknown"
+fi
 
-# platform=$(lsb_release -d | awk -F'\t' '{print $2}')
+platform=$(lsb_release -d | awk -F'\t' '{print $2}')
 
-# START_TIME_FILE="/tmp/health_check_start_time"
-# if [[ ! -f "$START_TIME_FILE" ]]; then
-#     echo "$(date +%s.%N)" > "$START_TIME_FILE"
-# fi
-# SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-# CURRENT_TIME=$(date +%s.%N)
-# duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
-# if (( $(echo "$duration > 10000" | bc -l) )); then
-#     echo "$(date +%s.%N)" > "$START_TIME_FILE"
-#     SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-#     duration="0.000000000"
-# fi
+START_TIME_FILE="/tmp/health_check_start_time"
+if [[ ! -f "$START_TIME_FILE" ]]; then
+    echo "$(date +%s.%N)" > "$START_TIME_FILE"
+fi
+SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
+CURRENT_TIME=$(date +%s.%N)
+duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
+if (( $(echo "$duration > 10000" | bc -l) )); then
+    echo "$(date +%s.%N)" > "$START_TIME_FILE"
+    SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
+    duration="0.000000000"
+fi
 
-# start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
+start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
-# # Disk & RAM usage
-# disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
-# disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
-# ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
-# ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
+# Disk & RAM usage
+disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
+disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
+ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
+ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
 
-# # CPU cores/threads
-# total_cores=$(lscpu | awk '/^Core\(s\) per socket:/ {print $4}')
-# sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
-# threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
-# total_cores=$((total_cores * sockets))
-# total_threads=$((total_cores * threads_per_core))
-# cpu_idle=$(mpstat 1 1 | awk '/Average/ {print $NF}')
-# cpu_usage=$(awk "BEGIN {printf \"%.2f\", 100 - $cpu_idle}")
-# threads_in_use=$(ps -eL -o stat | grep -E 'R|D' | wc -l)
-# threads_free=$((total_threads - threads_in_use))
-# if [ $threads_free -lt 0 ]; then
-#   threads_free=0
-# fi
-# cores_in_use=$(mpstat -P ALL 1 1 | awk '$3 ~ /^[0-9]+$/ { if ($12 < 95) count++ } END { print count }')
-# cores_free=$((total_cores - cores_in_use))
+# CPU cores/threads
+total_cores=$(lscpu | awk '/^Core\(s\) per socket:/ {print $4}')
+sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
+threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
+total_cores=$((total_cores * sockets))
+total_threads=$((total_cores * threads_per_core))
+cpu_idle=$(mpstat 1 1 | awk '/Average/ {print $NF}')
+cpu_usage=$(awk "BEGIN {printf \"%.2f\", 100 - $cpu_idle}")
+threads_in_use=$(ps -eL -o stat | grep -E 'R|D' | wc -l)
+threads_free=$((total_threads - threads_in_use))
+if [ $threads_free -lt 0 ]; then
+  threads_free=0
+fi
+cores_in_use=$(mpstat -P ALL 1 1 | awk '$3 ~ /^[0-9]+$/ { if ($12 < 95) count++ } END { print count }')
+cores_free=$((total_cores - cores_in_use))
 
 # # Excel sheet checks
 # # 2) Check Drive Age
@@ -249,7 +249,6 @@ fi
 # Get the current tuned profile
 active_profile=$(tuned-adm active | awk -F": " '/Current active profile/ {print $2}')
 echo "Current Tuned Profile: $active_profile"
-echo
 # Recommend appropriate profiles if not already set
 if [[ "$active_profile" != "network-latency" && "$active_profile" != "throughput-performance" ]]; then
     echo "Recommended Tuned Profiles:"
@@ -323,7 +322,7 @@ done
 echo -e "\nCurrent Uptime:"; uptime;
 echo -e "\nReboot History:\n---------------"; last reboot
 
-echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); if [ "$used_swap" -gt 500 ]; then echo -e "\n⚠️  WARNING: High swap usage detected ($used_swap MB)"; fi
+echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); if [ "$used_swap" -gt 500 ]; then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; fi
 echo
 
 echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; echo -e "\n=== Network Driver Info ==="; for iface in $(ls /sys/class/net | grep -v lo); do echo -e "\nInterface: $iface"; ethtool -i $iface 2>/dev/null; done
