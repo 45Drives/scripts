@@ -172,30 +172,30 @@ update_system() {
 	fi
 
 	# Install 45drives repository
-	# echo "Downloading 45Drives Repo Setup Script"
-	# curl -sSL https://repo.45drives.com/setup -o setup-repo.sh
+	echo "Downloading 45Drives Repo Setup Script"
+	curl -sSL https://repo.45drives.com/setup -o setup-repo.sh
 
-	# res=$?
-	# if [[ $res != 0 ]]; then
-	# 	echo "Failed to download repo setup script! (https://repo.45drives.com/setup)"
-	# 	exit $res
-	# fi
+	res=$?
+	if [[ $res != 0 ]]; then
+		echo "Failed to download repo setup script! (https://repo.45drives.com/setup)"
+		exit $res
+	fi
 
-	# echo "Running 45Drives Repo Setup Script"
+	echo "Running 45Drives Repo Setup Script"
 
-	# bash setup-repo.sh
+	bash setup-repo.sh
 	
-    # res=$?
+    res=$?
 	
-    # if [[ $res != 0 ]]; then
-	# 	echo "Failed to run the setup script! (https://repo.45drives.com/setup)"
-	# 	exit $res
-	# fi
+    if [[ $res != 0 ]]; then
+		echo "Failed to run the setup script! (https://repo.45drives.com/setup)"
+		exit $res
+	fi
 
-	# apt upgrade
+	
 	echo "Upgrading packages"
 	
-    apt upgrade -y
+	apt upgrade -y
 	
     res=$?
 	
