@@ -6,33 +6,33 @@
 
 filename="$(hostname)_report.json"  
 
-if command -v zfs &> /dev/null; then
-    tool_version=$(zfs --version | head -n 1 | awk '{print $2}' | cut -d'-' -f1)
-elif command -v lsb_release &> /dev/null; then
-    tool_version=$(uname -r | cut -d'-' -f1)  
-else
-    tool_version="Unknown"
-fi
+# if command -v zfs &> /dev/null; then
+#     tool_version=$(zfs --version | head -n 1 | awk '{print $2}' | cut -d'-' -f1)
+# elif command -v lsb_release &> /dev/null; then
+#     tool_version=$(uname -r | cut -d'-' -f1)  
+# else
+#     tool_version="Unknown"
+# fi
 
 platform=$(lsb_release -d | awk -F'\t' '{print $2}')
 
-START_TIME_FILE="/tmp/health_check_start_time"
-if [[ ! -f "$START_TIME_FILE" ]]; then
-    echo "$(date +%s.%N)" > "$START_TIME_FILE"
-fi
-SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-CURRENT_TIME=$(date +%s.%N)
-duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
-if (( $(echo "$duration > 10000" | bc -l) )); then
-    echo "$(date +%s.%N)" > "$START_TIME_FILE"
-    SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-    duration="0.000000000"
-fi
+# START_TIME_FILE="/tmp/health_check_start_time"
+# if [[ ! -f "$START_TIME_FILE" ]]; then
+#     echo "$(date +%s.%N)" > "$START_TIME_FILE"
+# fi
+# SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
+# CURRENT_TIME=$(date +%s.%N)
+# duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
+# if (( $(echo "$duration > 10000" | bc -l) )); then
+#     echo "$(date +%s.%N)" > "$START_TIME_FILE"
+#     SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
+#     duration="0.000000000"
+# fi
 
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
 # Disk & RAM usage
-disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
+disk_usage=$(df -h / | awk 'NR==2 {print "%.2f", $5}' | sed 's/%//')
 disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
 ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
 ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
@@ -331,9 +331,7 @@ echo
 cat <<EOF
 {
   "filename": "$filename",
-  "tool_version": "$tool_version",
   "platform": "$platform",
-  "duration": "$duration",
   "start_time": "$start_time",
   "system": {
     "total_cores": $total_cores,
@@ -349,8 +347,6 @@ cat <<EOF
   },
 }
 EOF
-
-
 
 # Check counters and result storage
 # "status": {
