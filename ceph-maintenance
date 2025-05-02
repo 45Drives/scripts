@@ -4,31 +4,26 @@ ceph_health=$(ceph -s 2>/dev/null | awk '$1 ~ /(noout,norebalance,norecover)/ {p
 
 ceph2=$(echo $ceph_health)
 
-OS=$(cat /etc/os-release | awk 'NR == 1 {print $1, $2}')
+ID=$(awk -F= '/^ID=/{gsub(/"/, "", $2); print $2}' /etc/os-release)
 
-if [ "$OS" == 'NAME="Rocky Linux"' ] ; then
-
-        package=$(rpm -qa | grep ceph-common)
-
-                if [[ $package != *"ceph-common"* ]]; then
-                        echo ceph-common not installed
-                        exit 1
-                fi
-
-
-elif [ $OS == 'NAME="Ubuntu"' ]; then
-
-        package=$(apt list --installed 2>/dev/null | grep -i ceph-common)
-
-                if [[ $package != *"ceph-common"* ]]; then
-                        echo ceph-common not installed
-                        exit 1
-                fi
-else
-
-        echo "OS is not Ubuntu or Rocky Linux"
+# Check for supported OS and ceph-common package
+if [[ "$ID" == "ubuntu" ]]; then
+    # Check for ceph-common using apt
+    if ! apt list --installed 2>/dev/null | grep -qi ceph-common; then
+        echo "ceph-common not installed on Ubuntu"
         exit 1
+    fi
 
+elif [[ "$ID" == "rocky" || "$ID" == "rhel" ]]; then
+    # Check for ceph-common using dnf
+    if ! dnf list installed ceph-common &>/dev/null; then
+        echo "ceph-common not installed on $ID"
+        exit 1
+    fi
+
+else
+    echo "Unsupported OS: $ID"
+    exit 1
 fi
 
 ceph -s >/dev/null 2>&1
