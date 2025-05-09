@@ -242,6 +242,7 @@ cores_free=$((total_cores - cores_in_use))
 # Hardware perspective checks
 # Check if tuned is installed
 if ! command -v tuned-adm &> /dev/null; then
+    echo
     echo "Tuned is not installed on this system."
     echo
 fi
@@ -249,23 +250,16 @@ fi
 # Get the current tuned profile
 active_profile=$(tuned-adm active | awk -F": " '/Current active profile/ {print $2}')
 echo "Current Tuned Profile: $active_profile"
-# Recommend appropriate profiles if not already set
-if [[ "$active_profile" != "network-latency" && "$active_profile" != "throughput-performance" ]]; then
-    echo "Recommended Tuned Profiles:"
-    echo "  - network-latency (for low-latency networking)"
-    echo "  - throughput-performance (for high-bandwidth needs)"
-else
-    echo "Current profile is suitable for network performance tuning."
-fi
+echo "-------------------------------------------------------------------------------"
 
 # # Capture RAM info using `free`
 echo
 read -r _ total used free shared buff_cache available <<< $(free -m | awk '/^Mem:/ {print $1, $2, $3, $4, $5, $6, $7}')
 echo "RAM Usage (in MB):"
-echo "------------------"
 echo "Total: $total MB"
 echo "Used:  $used MB"
 echo "Cache: $buff_cache MB"
+echo "-------------------------------------------------------------------------------"
 echo
 
 # Check if sestatus command exists
@@ -277,22 +271,22 @@ fi
 # Get the current SELinux mode
 selinux_mode=$(sestatus | awk '/Current mode:/ {print $3}')
 echo "SELinux Mode: $selinux_mode"
-echo
 # Warn if enforcing
 if [[ "$selinux_mode" == "enforcing" ]]; then
     echo "⚠️ WARNING: SELinux is in enforcing mode. This may interfere with some operations."
     echo
 fi
+echo "-------------------------------------------------------------------------------"
+echo 
 
 # Check if lsdev exists
 if ! command -v lsdev &> /dev/null; then
     echo "lsdev is not installed. Please install the 'procinfo' or equivalent package."
 fi
-
 # Show concise device summary
 echo "Hardware Device Summary (lsdev -cdt):"
-echo "-------------------------------------"
 lsdev -cdt
+echo "-------------------------------------------------------------------------------"
 echo 
 
 # Check if smartctl is installed
@@ -318,15 +312,54 @@ for i in $(ls /dev | grep -i '^sd[a-z]$'); do
     smartctl -x /dev/$i 2>/dev/null | grep -iE \
         'serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector'
 done
+echo "-------------------------------------------------------------------------------"
+echo 
 
 echo -e "\nCurrent Uptime:"; uptime;
-echo -e "\nReboot History:\n---------------"; last reboot
+echo -e "\nReboot History:"; last reboot
+echo "-------------------------------------------------------------------------------"
+echo 
 
 echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); if [ "$used_swap" -gt 500 ]; then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; fi
+echo "-------------------------------------------------------------------------------"
+echo 
+
+echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; 
+echo "-------------------------------------------------------------------------------"
+echo 
+
+echo -e "\n=== Network Driver Info ==="; for iface in $(ls /sys/class/net | grep -v lo); do echo -e "\nInterface: $iface"; ethtool -i $iface 2>/dev/null; done
+echo "-------------------------------------------------------------------------------"
+echo 
+
+# Check for open ports
+echo -e "\nOpen Ports:"
+ss -tuln
+echo "-------------------------------------------------------------------------------"
 echo
 
-echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; echo -e "\n=== Network Driver Info ==="; for iface in $(ls /sys/class/net | grep -v lo); do echo -e "\nInterface: $iface"; ethtool -i $iface 2>/dev/null; done
+# Check failed systemd units
+echo -e "\nFailed systemd Units:"
+systemctl --failed
+echo "-------------------------------------------------------------------------------"
 echo
+
+# Last boot duration
+echo -e "\nLast Boot Duration:"
+systemd-analyze
+echo "-------------------------------------------------------------------------------"
+echo
+
+# Check Motherboard Information
+echo -e "\nMotherboard Information:"
+if command -v dmidecode &> /dev/null; then
+    sudo dmidecode -t baseboard | grep -E 'Manufacturer:|Product Name:|Serial Number:'
+else
+    echo "dmidecode not found. Please install it to retrieve motherboard information."
+fi
+echo "-------------------------------------------------------------------------------"
+echo
+
 
 cat <<EOF
 {
