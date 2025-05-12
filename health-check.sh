@@ -11,10 +11,10 @@ platform=$(lsb_release -d | awk -F'\t' '{print $2}')
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
 # Disk & RAM usage
-disk_usage=$(df -h / | awk 'NR==2 {print "%.2f", $5}' | sed 's/%//')
-disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
 ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
 ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
+disk_usage=$(df / | awk 'NR==2 { printf "%.2f", ($3 / ($3 + $4)) * 100 }')
+disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
 
 # Hardware perspective checks
 # Check if tuned is installed
@@ -97,7 +97,10 @@ echo -e "\nReboot History:"; last reboot
 echo "-------------------------------------------------------------------------------"
 echo 
 
-echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); if [ "$used_swap" -gt 500 ]; then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; fi
+echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); 
+if [ "$used_swap" -gt 500 ]; 
+    then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; 
+fi
 echo "-------------------------------------------------------------------------------"
 echo 
 
@@ -105,7 +108,11 @@ echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk;
 echo "-------------------------------------------------------------------------------"
 echo 
 
-echo -e "\n=== Network Driver Info ==="; for iface in $(ls /sys/class/net | grep -v lo); do echo -e "\nInterface: $iface"; ethtool -i $iface 2>/dev/null; done
+echo -e "\n=== Network Driver Info ==="; 
+for iface in $(ls /sys/class/net | grep -v lo); 
+    do echo -e "\nInterface: $iface"; 
+    ethtool -i $iface 2>/dev/null; 
+done
 echo "-------------------------------------------------------------------------------"
 echo 
 
@@ -145,6 +152,11 @@ fi
 echo "-------------------------------------------------------------------------------"
 echo
 
+# AlertManager Status
+echo "AlertManager:" 
+systemctl is-active alertmanager
+echo "-------------------------------------------------------------------------------"
+echo
 
 cat <<EOF
 {
@@ -193,11 +205,6 @@ EOF
 #         fi
 #     done
 # fi
-# echo
-
-# # 5) AlertManager Status
-# echo -n "AlertManager is-active: "
-# systemctl is-active alertmanager
 # echo
 
 # # 7) Packet Errors
