@@ -6,28 +6,7 @@
 
 filename="$(hostname)_report.json"  
 
-# if command -v zfs &> /dev/null; then
-#     tool_version=$(zfs --version | head -n 1 | awk '{print $2}' | cut -d'-' -f1)
-# elif command -v lsb_release &> /dev/null; then
-#     tool_version=$(uname -r | cut -d'-' -f1)  
-# else
-#     tool_version="Unknown"
-# fi
-
 platform=$(lsb_release -d | awk -F'\t' '{print $2}')
-
-# START_TIME_FILE="/tmp/health_check_start_time"
-# if [[ ! -f "$START_TIME_FILE" ]]; then
-#     echo "$(date +%s.%N)" > "$START_TIME_FILE"
-# fi
-# SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-# CURRENT_TIME=$(date +%s.%N)
-# duration=$(awk "BEGIN {printf \"%.9f\", $CURRENT_TIME - $SCRIPT_START_TIME}")
-# if (( $(echo "$duration > 10000" | bc -l) )); then
-#     echo "$(date +%s.%N)" > "$START_TIME_FILE"
-#     SCRIPT_START_TIME=$(cat "$START_TIME_FILE")
-#     duration="0.000000000"
-# fi
 
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
@@ -37,27 +16,152 @@ disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
 ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
 ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
 
-# CPU cores/threads
-total_cores=$(lscpu | awk '/^Core\(s\) per socket:/ {print $4}')
-sockets=$(lscpu | awk '/^Socket\(s\):/ {print $2}')
-threads_per_core=$(lscpu | awk '/^Thread\(s\) per core:/ {print $4}')
-total_cores=$((total_cores * sockets))
-total_threads=$((total_cores * threads_per_core))
-cpu_idle=$(mpstat 1 1 | awk '/Average/ {print $NF}')
-cpu_usage=$(awk "BEGIN {printf \"%.2f\", 100 - $cpu_idle}")
-threads_in_use=$(ps -eL -o stat | grep -E 'R|D' | wc -l)
-threads_free=$((total_threads - threads_in_use))
-if [ $threads_free -lt 0 ]; then
-  threads_free=0
+# Hardware perspective checks
+# Check if tuned is installed
+if ! command -v tuned-adm &> /dev/null; then
+    echo
+    echo "Tuned is not installed on this system."
+    echo
 fi
-cores_in_use=$(mpstat -P ALL 1 1 | awk '$3 ~ /^[0-9]+$/ { if ($12 < 95) count++ } END { print count }')
-cores_free=$((total_cores - cores_in_use))
+
+# Get the current tuned profile
+active_profile=$(tuned-adm active | awk -F": " '/Current active profile/ {print $2}')
+echo "Current Tuned Profile: $active_profile"
+echo "-------------------------------------------------------------------------------"
+
+# # Capture RAM info using `free`
+echo
+read -r _ total used free shared buff_cache available <<< $(free -m | awk '/^Mem:/ {print $1, $2, $3, $4, $5, $6, $7}')
+echo "RAM Usage (in MB):"
+echo "Total: $total MB"
+echo "Used:  $used MB"
+echo "Cache: $buff_cache MB"
+echo "-------------------------------------------------------------------------------"
+echo
+
+# Check if sestatus command exists
+if ! command -v sestatus &> /dev/null; then
+    echo "SELinux is not installed or sestatus is not available."
+    echo
+fi
+
+# Get the current SELinux mode
+selinux_mode=$(sestatus | awk '/Current mode:/ {print $3}')
+echo "SELinux Mode: $selinux_mode"
+# Warn if enforcing
+if [[ "$selinux_mode" == "enforcing" ]]; then
+    echo "⚠️ WARNING: SELinux is in enforcing mode. This may interfere with some operations."
+    echo
+fi
+echo "-------------------------------------------------------------------------------"
+echo 
+
+# Check if lsdev exists
+if ! command -v lsdev &> /dev/null; then
+    echo "lsdev is not installed. Please install the 'procinfo' or equivalent package."
+fi
+# Show concise device summary
+echo "Hardware Device Summary (lsdev -cdt):"
+lsdev -cdt
+echo "-------------------------------------------------------------------------------"
+echo 
+
+# Check if smartctl is installed
+if ! command -v smartctl &> /dev/null; then
+    echo "smartctl not found. Please install smartmontools."
+fi
+
+echo "===== Drive SMART Stats Summary ====="
+
+# Loop through all /dev/sdX devices (exclude partitions like /dev/sda1)
+for i in $(ls /dev | grep -i '^sd[a-z]$'); do
+    echo -e "\nDevice: /dev/$i"
+
+    # Try to get slot/vdev label if available
+    if [[ -d /dev/disk/by-vdev ]]; then
+        slot=$(ls -l /dev/disk/by-vdev/ | grep -w "$i" | awk '{print $9}')
+        echo "Slot: ${slot:-Not labeled}"
+    else
+        echo "Slot: (by-vdev mapping not found)"
+    fi
+
+    # Print selected SMART attributes
+    smartctl -x /dev/$i 2>/dev/null | grep -iE \
+        'serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector'
+done
+echo "-------------------------------------------------------------------------------"
+echo 
+
+echo -e "\nCurrent Uptime:"; uptime;
+echo -e "\nReboot History:"; last reboot
+echo "-------------------------------------------------------------------------------"
+echo 
+
+echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); if [ "$used_swap" -gt 500 ]; then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; fi
+echo "-------------------------------------------------------------------------------"
+echo 
+
+echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; 
+echo "-------------------------------------------------------------------------------"
+echo 
+
+echo -e "\n=== Network Driver Info ==="; for iface in $(ls /sys/class/net | grep -v lo); do echo -e "\nInterface: $iface"; ethtool -i $iface 2>/dev/null; done
+echo "-------------------------------------------------------------------------------"
+echo 
+
+# Check for open ports
+echo -e "\nOpen Ports:"
+ss -tuln
+echo "-------------------------------------------------------------------------------"
+echo
+
+# Check failed systemd units
+echo -e "\nFailed systemd Units:"
+systemctl --failed
+echo "-------------------------------------------------------------------------------"
+echo
+
+# Last boot duration
+echo -e "\nLast Boot Duration:"
+systemd-analyze
+echo "-------------------------------------------------------------------------------"
+echo
+
+# Drive Age (Power_On_Hours)
+echo -e "Drive Age (Power_On_Hours):"
+if ! command -v smartctl &> /dev/null; then
+    echo "smartctl not found. Please install smartmontools."
+else
+    for i in $(ls /dev | grep -i '^sd[a-z]$'); do
+        echo -e "\nDevice: /dev/$i"
+        power_on_hours=$(smartctl -A /dev/$i 2>/dev/null | awk '/Power_On_Hours/ {print $10}')
+        if [[ -n "$power_on_hours" ]]; then
+            echo "Power-On Hours: $power_on_hours"
+        else
+            echo "Power-On Hours not available."
+        fi
+    done
+fi
+echo "-------------------------------------------------------------------------------"
+echo
+
+
+cat <<EOF
+{
+  "filename": "$filename",
+  "platform": "$platform",
+  "start_time": "$start_time",
+  "system": {
+    "ram_usage_percent": $ram_usage,
+    "ram_free_percent": $ram_free,
+    "disk_usage_percent": $disk_usage,
+    "disk_free_percent": $disk_free
+  },
+}
+EOF
+
 
 # # Excel sheet checks
-# # 2) Check Drive Age
-# echo "Drive Age (Power_On_Hours for /dev/sdb):"
-# smartctl -A /dev/sdb | awk '/Power_On_Hours/ {print $10}'
-# echo
 
 # # 3) Check Storage System
 # if command -v zfs &> /dev/null; then
@@ -239,147 +343,8 @@ cores_free=$((total_cores - cores_in_use))
 # ip route show default | head -n 1
 # echo
 
-# Hardware perspective checks
-# Check if tuned is installed
-if ! command -v tuned-adm &> /dev/null; then
-    echo
-    echo "Tuned is not installed on this system."
-    echo
-fi
-
-# Get the current tuned profile
-active_profile=$(tuned-adm active | awk -F": " '/Current active profile/ {print $2}')
-echo "Current Tuned Profile: $active_profile"
-echo "-------------------------------------------------------------------------------"
-
-# # Capture RAM info using `free`
-echo
-read -r _ total used free shared buff_cache available <<< $(free -m | awk '/^Mem:/ {print $1, $2, $3, $4, $5, $6, $7}')
-echo "RAM Usage (in MB):"
-echo "Total: $total MB"
-echo "Used:  $used MB"
-echo "Cache: $buff_cache MB"
-echo "-------------------------------------------------------------------------------"
-echo
-
-# Check if sestatus command exists
-if ! command -v sestatus &> /dev/null; then
-    echo "SELinux is not installed or sestatus is not available."
-    echo
-fi
-
-# Get the current SELinux mode
-selinux_mode=$(sestatus | awk '/Current mode:/ {print $3}')
-echo "SELinux Mode: $selinux_mode"
-# Warn if enforcing
-if [[ "$selinux_mode" == "enforcing" ]]; then
-    echo "⚠️ WARNING: SELinux is in enforcing mode. This may interfere with some operations."
-    echo
-fi
-echo "-------------------------------------------------------------------------------"
-echo 
-
-# Check if lsdev exists
-if ! command -v lsdev &> /dev/null; then
-    echo "lsdev is not installed. Please install the 'procinfo' or equivalent package."
-fi
-# Show concise device summary
-echo "Hardware Device Summary (lsdev -cdt):"
-lsdev -cdt
-echo "-------------------------------------------------------------------------------"
-echo 
-
-# Check if smartctl is installed
-if ! command -v smartctl &> /dev/null; then
-    echo "smartctl not found. Please install smartmontools."
-fi
-
-echo "===== Drive SMART Stats Summary ====="
-
-# Loop through all /dev/sdX devices (exclude partitions like /dev/sda1)
-for i in $(ls /dev | grep -i '^sd[a-z]$'); do
-    echo -e "\nDevice: /dev/$i"
-
-    # Try to get slot/vdev label if available
-    if [[ -d /dev/disk/by-vdev ]]; then
-        slot=$(ls -l /dev/disk/by-vdev/ | grep -w "$i" | awk '{print $9}')
-        echo "Slot: ${slot:-Not labeled}"
-    else
-        echo "Slot: (by-vdev mapping not found)"
-    fi
-
-    # Print selected SMART attributes
-    smartctl -x /dev/$i 2>/dev/null | grep -iE \
-        'serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector'
-done
-echo "-------------------------------------------------------------------------------"
-echo 
-
-echo -e "\nCurrent Uptime:"; uptime;
-echo -e "\nReboot History:"; last reboot
-echo "-------------------------------------------------------------------------------"
-echo 
-
-echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); if [ "$used_swap" -gt 500 ]; then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; fi
-echo "-------------------------------------------------------------------------------"
-echo 
-
-echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; 
-echo "-------------------------------------------------------------------------------"
-echo 
-
-echo -e "\n=== Network Driver Info ==="; for iface in $(ls /sys/class/net | grep -v lo); do echo -e "\nInterface: $iface"; ethtool -i $iface 2>/dev/null; done
-echo "-------------------------------------------------------------------------------"
-echo 
-
-# Check for open ports
-echo -e "\nOpen Ports:"
-ss -tuln
-echo "-------------------------------------------------------------------------------"
-echo
-
-# Check failed systemd units
-echo -e "\nFailed systemd Units:"
-systemctl --failed
-echo "-------------------------------------------------------------------------------"
-echo
-
-# Last boot duration
-echo -e "\nLast Boot Duration:"
-systemd-analyze
-echo "-------------------------------------------------------------------------------"
-echo
-
-# Check Motherboard Information
-echo -e "\nMotherboard Information:"
-if command -v dmidecode &> /dev/null; then
-    sudo dmidecode -t baseboard | grep -E 'Manufacturer:|Product Name:|Serial Number:'
-else
-    echo "dmidecode not found. Please install it to retrieve motherboard information."
-fi
-echo "-------------------------------------------------------------------------------"
-echo
 
 
-cat <<EOF
-{
-  "filename": "$filename",
-  "platform": "$platform",
-  "start_time": "$start_time",
-  "system": {
-    "total_cores": $total_cores,
-    "total_threads": $total_threads,
-    "threads_in_use": $threads_in_use,
-    "threads_free": $threads_free,
-    "cores_in_use": $cores_in_use,
-    "cores_free": $cores_free,
-    "ram_usage_percent": $ram_usage,
-    "ram_free_percent": $ram_free,
-    "disk_usage_percent": $disk_usage,
-    "disk_free_percent": $disk_free
-  },
-}
-EOF
 
 # Check counters and result storage
 # "status": {
