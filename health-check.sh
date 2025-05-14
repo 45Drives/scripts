@@ -158,6 +158,25 @@ systemctl is-active alertmanager
 echo "-------------------------------------------------------------------------------"
 echo
 
+# Check Snapshots
+echo "Snapshots Info:"
+zpools=$(zpool list -H -o name 2>/dev/null)
+if [[ -z "$zpools" ]]; then
+    echo "No zpools found."
+else
+    for pool in $zpools; do
+        echo "Pool: $pool"
+        snapshots=$(zfs list -H -t snapshot -o name -r $pool 2>/dev/null)
+        if [[ -z "$snapshots" ]]; then
+            echo "  No snapshots found."
+        else
+            echo "$snapshots" | sed 's/^/  /'
+        fi
+    done
+fi
+echo "-------------------------------------------------------------------------------"
+echo
+
 cat <<EOF
 {
   "filename": "$filename",
