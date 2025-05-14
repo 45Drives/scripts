@@ -177,6 +177,20 @@ fi
 echo "-------------------------------------------------------------------------------"
 echo
 
+# Packet Error Check
+echo "Packet Errors:"
+for iface in $(ls /sys/class/net | grep -v lo); do
+  echo -n "$iface: "
+  cat /sys/class/net/$iface/statistics/{rx_errors,tx_errors} | xargs echo "RX TX"
+done
+echo "-------------------------------------------------------------------------------"
+echo
+
+echo "System updates available (apt list --upgradable):"
+apt list --upgradable 2>/dev/null
+echo "-------------------------------------------------------------------------------"
+echo
+
 cat <<EOF
 {
   "filename": "$filename",
@@ -207,29 +221,6 @@ EOF
 #     ceph -s
 #     echo
 # fi
-
-# # 4) Check Snapshots
-# echo "Snapshots Info:"
-# zpools=$(zpool list -H -o name 2>/dev/null)
-# if [[ -z "$zpools" ]]; then
-#     echo "No zpools found."
-# else
-#     for pool in $zpools; do
-#         echo "Pool: $pool"
-#         snapshots=$(zfs list -H -t snapshot -o name -r $pool 2>/dev/null)
-#         if [[ -z "$snapshots" ]]; then
-#             echo "  No snapshots found."
-#         else
-#             echo "$snapshots" | sed 's/^/  /'
-#         fi
-#     done
-# fi
-# echo
-
-# # 7) Packet Errors
-# echo "Packet Errors:"
-# netstat -i | awk 'NR==1 || $5 > 0'
-# echo
 
 # # 8) iSCSI Fix Applied
 # # iSCSI Fix Applied
