@@ -60,7 +60,6 @@ echo
 if ! command -v lsdev &> /dev/null; then
     echo "lsdev is not installed. Please install the 'procinfo' or equivalent package."
 fi
-# Show concise device summary
 echo "Hardware Device Summary (lsdev -cdt):"
 lsdev -cdt
 echo "-------------------------------------------------------------------------------"
@@ -77,7 +76,6 @@ echo "===== Drive SMART Stats Summary ====="
 for i in $(ls /dev | grep -i '^sd[a-z]$'); do
     echo -e "\nDevice: /dev/$i"
 
-    # Try to get slot/vdev label if available
     if [[ -d /dev/disk/by-vdev ]]; then
         slot=$(ls -l /dev/disk/by-vdev/ | grep -w "$i" | awk '{print $9}')
         echo "Slot: ${slot:-Not labeled}"
@@ -85,18 +83,19 @@ for i in $(ls /dev | grep -i '^sd[a-z]$'); do
         echo "Slot: (by-vdev mapping not found)"
     fi
 
-    # Print selected SMART attributes
     smartctl -x /dev/$i 2>/dev/null | grep -iE \
         'serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector'
 done
 echo "-------------------------------------------------------------------------------"
 echo 
 
+# Memory and Swap usage
 echo -e "\nCurrent Uptime:"; uptime;
 echo -e "\nReboot History:"; last reboot
 echo "-------------------------------------------------------------------------------"
 echo 
 
+# Memory and Swap usage
 echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); 
 if [ "$used_swap" -gt 500 ]; 
     then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; 
@@ -104,10 +103,12 @@ fi
 echo "-------------------------------------------------------------------------------"
 echo 
 
+# PCI Devices and Drivers
 echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; 
 echo "-------------------------------------------------------------------------------"
 echo 
 
+# Network Driver Info
 echo -e "\n=== Network Driver Info ==="; 
 for iface in $(ls /sys/class/net | grep -v lo); 
     do echo -e "\nInterface: $iface"; 
@@ -191,6 +192,38 @@ apt list --upgradable 2>/dev/null
 echo "-------------------------------------------------------------------------------"
 echo
 
+# Check Link Speed for eth0
+echo "14) eth0 Link Speed:"
+ethtool eth0 2>/dev/null | grep "Speed" || echo "eth0 not detected"
+echo "-------------------------------------------------------------------------------"
+echo
+
+# Winbind Running Check (if domain joined)
+echo -n "Winbind service status: "
+systemctl is-active winbind 2>/dev/null || echo "not installed"
+echo "-------------------------------------------------------------------------------"
+echo
+
+# Primary Route Check
+echo "Primary Default Route:"
+ip route show default | head -n 1
+echo "-------------------------------------------------------------------------------"
+echo
+
+# ZFS and Ceph Status
+echo "ZFS Status:"
+zpool status
+echo "Ceph Status:" 
+ceph -s
+echo "-------------------------------------------------------------------------------"
+echo
+
+# IPMI Reachability Check
+ipmi_ip="$(ip route | awk '/default/ {print $3}' | sed 's/[0-9]*$//')"
+ping -c 1 $ipmi_ip 2>/dev/null
+echo "-------------------------------------------------------------------------------"
+echo
+
 cat <<EOF
 {
   "filename": "$filename",
@@ -207,21 +240,6 @@ EOF
 
 
 # # Excel sheet checks
-
-# # 3) Check Storage System
-# if command -v zfs &> /dev/null; then
-#     echo "ZFS Status:"
-#     zpool status
-#     echo
-# fi
-
-# # Check Ceph Status
-# if command -v ceph &> /dev/null; then
-#     echo "Ceph Status:" 
-#     ceph -s
-#     echo
-# fi
-
 # # 8) iSCSI Fix Applied
 # # iSCSI Fix Applied
 # if [[ -f /etc/systemd/system/iscsi.service ]]; then
@@ -229,11 +247,6 @@ EOF
 # else
 #     echo "iSCSI Fix is not applied"
 # fi
-# echo
-
-# # 9) System Updates Check
-# echo "System updates available (apt list --upgradable):"
-# apt list --upgradable 2>/dev/null
 # echo
 
 # # 10) Read/Write Test
@@ -246,35 +259,15 @@ EOF
 # cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "not_available"
 # echo
 
-# # 12) Check Amount of RAM  
-# echo "Total RAM (in MB):"
-# free -m | awk '/Mem:/ {print $2}'
-# echo
-
 # # 13) Check System Install Date (System Age)  
 # echo "System Install Date (based on root dir creation):"
-# ls -lt --time=cr / | tail -1 | awk '{print $6, $7, $8}'
-# echo
-
-# # 14) Check Link Speed for eth0 (or main NIC)
-# echo "eth0 Link Speed:"
-# ethtool eth0 2>/dev/null | grep "Speed" || echo "eth0 not detected"
+# ls -lt / | tail -1 | awk '{print $6, $7, $8}'
 # echo
 
 # # 15) Test Email Alert (Automatic attempt)
 # echo "Email config files:"
 # grep -H 'mail' /etc/aliases 2>/dev/null
 # grep -i 'smtp' /etc/postfix/main.cf 2>/dev/null
-# echo
-
-# # 16) AlertManager UI Verification
-# # echo "Checking if AlertManager is running on port 9093:"
-# # netstat -tuln | grep ':9093'
-# # echo
-
-# # 17) Winbind Running Check (if domain joined)
-# echo -n "Winbind service status: "
-# systemctl is-active winbind 2>/dev/null || echo "not installed"
 # echo
 
 # # 18) Global MacOS Config Check (Look for related configs)
@@ -355,13 +348,6 @@ EOF
 #     echo
 # done
 
-# # 10) Primary Route Check
-# echo "Primary Default Route:"
-# ip route show default | head -n 1
-# echo
-
-
-
 
 # Check counters and result storage
 # "status": {
@@ -398,223 +384,7 @@ EOF
 
 # # CHECKS
 
-# # Excel sheet checks
-# # 1) Check System Uptime
-# uptime_check=$(uptime -p)
-# if [[ -n "$uptime_check" ]]; then
-#     record_check "System Uptime" "passed"
-# else
-#     record_check "System Uptime" "failed"
-# fi
-
-# # 2) Check Drive Age
-# drive_hours=$(smartctl -A /dev/sdb | awk '/Power_On_Hours/ {print $10}')
-# if [[ -n "$drive_hours" ]]; then
-#     record_check "Drive Age Available" "passed"
-# else
-#     record_check "Drive Age Available" "failed"
-# fi
-
-# # 3) Check Storage System
-# if command -v zfs &> /dev/null; then
-#     zpool status &> /dev/null && record_check "ZFS Status" "passed"
-# else
-#     record_check "ZFS Status" "failed"
-# fi
-
-# if command -v ceph &> /dev/null; then
-#     ceph -s &> /dev/null && record_check "Ceph Status" "passed"
-# else
-#     record_check "Ceph Status" "failed"
-# fi
-
-# # 4) Check Snapshots
-# print_snapshots_info() {
-#     echo "Snapshots Info:"
-#     zpools=$(zpool list -H -o name 2>/dev/null)
-#     if [[ -z "$zpools" ]]; then
-#         echo "No zpools found."
-#         return
-#     fi
-#     for pool in $zpools; do
-#         echo "Pool: $pool"
-#         snapshots=$(zfs list -H -t snapshot -o name -r $pool 2>/dev/null)
-#         if [[ -z "$snapshots" ]]; then
-#             echo "No snapshots found for pool: $pool"
-#         else
-#             for snapshot in $snapshots; do
-#                 echo "Snapshot: $snapshot"
-#             done
-#         fi
-#         echo ""
-#     done
-# }
-
-# snapshots_enabled=$(zfs list -t snapshot 2>/dev/null | wc -l)
-# if [[ "$snapshots_enabled" -gt 0 ]]; then
-#     record_check "Snapshots Enabled" "passed"
-#     print_snapshots_info
-# else
-#     record_check "Snapshots Enabled" "failed"
-# fi
-
-# # 5) AlertManager Status
-# systemctl is-active --quiet alertmanager && record_check "AlertManager Running" "passed" || record_check "AlertManager Running" "failed"
-
-# # 6) Network Connectivity
-# ping -c 2 8.8.8.8 &> /dev/null && record_check "Network Connectivity" "passed" || record_check "Network Connectivity" "failed"
-
-# # 7) Packet Errors
-# packet_errors=$(netstat -i | awk '{if ($5 > 0) print $0}')
-# if [[ -z "$packet_errors" ]]; then
-#     record_check "Packet Errors" "passed"
-# else
-#     record_check "Packet Errors" "failed"
-# fi
-
-# # 8) iSCSI Fix Applied
-# [[ -f /etc/systemd/system/iscsi.service ]] && record_check "iSCSI Fix Applied" "passed" || record_check "iSCSI Fix Applied" "not_applicable"
-
-# # 9) System Updates Check
-# updates_available=$(apt list --upgradable 2>/dev/null | wc -l)
-# if [[ "$updates_available" -gt 1 ]]; then
-#     record_check "Updates Pending" "failed"
-# else
-#     record_check "Updates Pending" "passed"
-# fi
-
-# # 10) Read/Write Test
-# touch /tmp/testfile && echo "test" > /tmp/testfile && rm /tmp/testfile && record_check "Read/Write Test" "passed" || record_check "Read/Write Test" "failed"
-
-# # 11) Check Serial Number  
-# serial_number=$(cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "not_available")
-# if [[ "$serial_number" != "not_available" ]]; then
-#     record_check "System Serial Number Available" "passed"
-# else
-#     record_check "System Serial Number Available" "failed"
-# fi
-
-# # 12) Check Amount of RAM  
-# ram_total=$(free -m | awk '/Mem:/ {print $2}')  
-# if [[ -n "$ram_total" ]]; then  
-#     record_check "RAM Reporting Available" "passed"  
-# else  
-#     record_check "RAM Reporting Available" "failed"  
-# fi  
-
-# # 13) Check System Install Date (System Age)  
-# install_date=$(ls -lt --time=cr / | tail -1 | awk '{print $6, $7, $8}')  
-# if [[ -n "$install_date" ]]; then  
-#     record_check "System Age Available" "passed"  
-# else  
-#     record_check "System Age Available" "not_reviewed"  
-# fi  
-
-# # 14) Check Link Speed for eth0 (or main NIC)  
-# link_speed=$(ethtool eth0 2>/dev/null | grep "Speed" | awk '{print $2}')  
-# if [[ -n "$link_speed" ]]; then  
-#     record_check "Network Link Speed Detected" "passed"  
-# else  
-#     record_check "Network Link Speed Detected" "not_applicable"  
-# fi  
-# # 15) Test Email Alert (Automatic attempt)
-# if grep -q 'mail' /etc/aliases || grep -qi 'smtp' /etc/postfix/main.cf 2>/dev/null; then
-#     record_check "Test Email Alert" "passed"
-# else
-#     record_check "Test Email Alert" "not_reviewed"
-# fi
-
-# # 16) AlertManager UI Verification (Attempt automatic check for running web port)
-# if netstat -tuln | grep -q ':9093'; then
-#     record_check "AlertManager UI Verification" "passed"
-# else
-#     record_check "AlertManager UI Verification" "not_reviewed"
-# fi
-
-# # 17) Winbind Running Check (if domain joined)
-# if systemctl is-active --quiet winbind; then
-#     record_check "Winbind Running" "passed"
-# else
-#     record_check "Winbind Running" "not_applicable"
-# fi
-
-# # 18) Global MacOS Config Check (Look for related configs)
-# if grep -i 'macos' /etc/samba/smb.conf 2>/dev/null | grep -q 'global'; then
-#     record_check "Global MacOS Config" "passed"
-# else
-#     record_check "Global MacOS Config" "not_reviewed"
-# fi
-
-# # 19) File Sharing Permissions Check (Look for valid user/group misconfigurations)
-# if grep -i 'valid users' /etc/samba/smb.conf 2>/dev/null; then
-#     record_check "File Sharing Permissions" "passed"
-# else
-#     record_check "File Sharing Permissions" "not_reviewed"
-# fi
-
-# # 20) Windows ACL with Linux/MacOS Support (Attempt detection)
-# if grep -iq 'nt acl support = yes' /etc/samba/smb.conf 2>/dev/null; then
-#     record_check "Windows ACL Config" "passed"
-# else
-#     record_check "Windows ACL Config" "not_reviewed"
-# fi
-
-# # 21) Recalls or Power Harness Defect (Manual or external lookup required)
-# #record_check "Hardware Recall Check" "not_reviewed"
-
-# # 22) SnapShield Last FireDrill Check (Look for logs or config entry if exists)
-# if [ -f /var/log/snapshield_firedrill.log ]; then
-#     record_check "SnapShield Last FireDrill" "passed"
-# else
-#     record_check "SnapShield Last FireDrill" "not_reviewed"
-# fi
-
-# # 23) Recommend Actions Summary (to be generated post-checks or flagged for manual summary)
-# #record_check "Recommendation Summary" "not_reviewed"
-
 # # Word document checks
-# # Raid status checks
-# if command -v zpool &> /dev/null; then
-#     zpool status -v > /tmp/zpool_status.txt
-#     record_check "ZFS Pool Spec Check (Manual review of /tmp/zpool_status.txt)" "not_reviewed"
-
-#     if zpool status | grep -qi "DEGRADED\|FAULTED\|OFFLINE"; then
-#         record_check "ZFS Failed Drives Detected" "failed"
-#     else
-#         record_check "ZFS Failed Drives Detected" "passed"
-#     fi
-
-#     errors=$(zpool status | grep -E 'errors:|read:|write:|cksum:' | grep -v 'errors: No known data errors' | wc -l)
-#     if [[ $errors -gt 0 ]]; then
-#         record_check "ZFS Pool Errors Found" "failed"
-#     else
-#         record_check "ZFS Pool Errors Found" "passed"
-#     fi
-
-#     if zpool get autotrim | grep -q "on"; then
-#         record_check "ZFS Autotrim Enabled" "passed"
-#     else
-#         record_check "ZFS Autotrim Enabled" "failed"
-#     fi
-
-#     zpool status > /tmp/zfs_raid_layout.txt
-#     record_check "RAID Layout Best Practice (Manual review in /tmp/zfs_raid_layout.txt)" "not_reviewed"
-
-#     pool_capacity=$(zpool list -H -o capacity | cut -d'%' -f1)
-#     if (( pool_capacity < 80 )); then
-#         record_check "ZFS Pool Room for Expansion" "passed"
-#     else
-#         record_check "ZFS Pool Room for Expansion" "failed"
-#     fi
-# else
-#     record_check "ZFS Pool Spec Check" "not_applicable"
-#     record_check "ZFS Failed Drives Detected" "not_applicable"
-#     record_check "ZFS Pool Errors Found" "not_applicable"
-#     record_check "ZFS Autotrim Enabled" "not_applicable"
-#     record_check "RAID Layout Best Practice" "not_applicable"
-#     record_check "ZFS Pool Room for Expansion" "not_applicable"
-# fi
-
 # # Network Interface Configuration checks
 # # 1) Log Network Errors
 # error_logs=$(dmesg | grep -iE 'error|fail|link|network')
@@ -647,25 +417,12 @@ EOF
 #     record_check "Network Driver Installed (eth0)" "failed"
 # fi
 
-# # 5) Best Practice Tuning - Manual
-# #record_check "Network Best Practice Tuning Review" "not_reviewed"
-
-# # 6) Iperf Test - Manual Recommendation
-# #record_check "Iperf Test Between Client and Server" "not_reviewed"
 
 # # 7) VLAN Usage Check
 # if ip -d link show | grep -q vlan; then
 #     record_check "VLANs In Use" "passed"
 # else
 #     record_check "VLANs In Use" "not_applicable"
-# fi
-
-# # 8) IPMI Reachability Check (assuming default IP)
-# ipmi_ip="192.168.209.220"  # Change as needed
-# if ping -c 1 $ipmi_ip &> /dev/null; then
-#     record_check "IPMI Reachable" "passed"
-# else
-#     record_check "IPMI Reachability" "not_reviewed"
 # fi
 
 # # 9) ethtool Check for All Interfaces
@@ -682,12 +439,5 @@ EOF
 # else
 #     record_check "Primary Route Check" "failed"
 # fi
-
-# # 11) Possible Packet Loss Detection
-# # if ping -c 5 192.168.209.220 | grep -q '0% packet loss'; then
-# #     record_check "No Packet Loss Detected" "passed"
-# # else
-# #     record_check "Packet Loss Detected" "failed"
-# # fi
 
 # check_results="${check_results%,}]"
