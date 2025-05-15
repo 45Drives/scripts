@@ -194,13 +194,13 @@ echo
 
 # Check Link Speed for eth0
 echo "14) eth0 Link Speed:"
-ethtool eth0 2>/dev/null | grep "Speed" || echo "eth0 not detected"
+ethtool eth0 2>/dev/null | grep "Speed" 
 echo "-------------------------------------------------------------------------------"
 echo
 
 # Winbind Running Check (if domain joined)
 echo -n "Winbind service status: "
-systemctl is-active winbind 2>/dev/null || echo "not installed"
+systemctl is-active winbind 2>/dev/null 
 echo "-------------------------------------------------------------------------------"
 echo
 
@@ -218,9 +218,9 @@ ceph -s
 echo "-------------------------------------------------------------------------------"
 echo
 
-# IPMI Reachability Check
-ipmi_ip="$(ip route | awk '/default/ {print $3}' | sed 's/[0-9]*$//')"
-ping -c 1 $ipmi_ip 2>/dev/null
+# Network Driver Installed Check
+echo "4) Network Driver Info for eth0:"
+ethtool -i eth0 2>/dev/null 
 echo "-------------------------------------------------------------------------------"
 echo
 
@@ -238,27 +238,7 @@ cat <<EOF
 }
 EOF
 
-
 # # Excel sheet checks
-# # 8) iSCSI Fix Applied
-# # iSCSI Fix Applied
-# if [[ -f /etc/systemd/system/iscsi.service ]]; then
-#     echo "iSCSI Fix is applied (/etc/systemd/system/iscsi.service exists)"
-# else
-#     echo "iSCSI Fix is not applied"
-# fi
-# echo
-
-# # 10) Read/Write Test
-# echo "Performing Read/Write Test on /tmp/testfile..."
-# touch /tmp/testfile && echo "test" > /tmp/testfile && cat /tmp/testfile && rm /tmp/testfile
-# echo
-
-# # 11) Check Serial Number 
-# echo "System Serial mber:"
-# cat /sys/class/dmi/id/product_serial 2>/dev/null || echo "not_available"
-# echo
-
 # # 13) Check System Install Date (System Age)  
 # echo "System Install Date (based on root dir creation):"
 # ls -lt / | tail -1 | awk '{print $6, $7, $8}'
@@ -325,20 +305,9 @@ EOF
 # ip link show eth0 | grep -oP 'mtu \K[0-9]+'
 # echo
 
-# # 4) Network Driver Installed Check
-# echo "Network Driver Info for eth0:"
-# ethtool -i eth0 2>/dev/null || echo "No driver info found for eth0"
-# echo
-
 # # 7) VLAN Usage Check
 # echo "VLAN Interfaces:"
 # ip -d link show | grep vlan || echo "No VLAN interfaces found"
-# echo
-
-# # 8) IPMI Reachability Check
-# ipmi_ip="192.168.209.220"  # Change as needed
-# echo "Pinging IPMI ($ipmi_ip):"
-# ping -c 1 $ipmi_ip
 # echo
 
 # # 9) ethtool Check for All Interfaces
@@ -347,42 +316,6 @@ EOF
 #     ethtool $iface 2>/dev/null
 #     echo
 # done
-
-
-# Check counters and result storage
-# "status": {
-#     "passed": $passed,
-#     "failed": $failed,
-#     "not_applicable": $not_applicable,
-#     "not_reviewed": $not_reviewed,
-#     "total_checks": $total_checks
-#   },
-
-# total_checks=0
-# passed=0
-# failed=0
-# not_applicable=0
-# not_reviewed=0
-# check_results="["
-
-# # Function to run and record checks
-# record_check() {
-#     local name="$1"
-#     local result="$2"
-#     check_results+="{\"check\": \"$name\", \"status\": \"$result\"},"
-#     if [[ "$result" == "passed" ]]; then
-#         passed=$((passed+1))
-#     elif [[ "$result" == "failed" ]]; then
-#         failed=$((failed+1))
-#     elif [[ "$result" == "not_applicable" ]]; then
-#         not_applicable=$((not_applicable+1))
-#     elif [[ "$result" == "not_reviewed" ]]; then
-#         not_reviewed=$((not_reviewed+1))
-#     fi
-#     total_checks=$((total_checks+1))
-# }
-
-# # CHECKS
 
 # # Word document checks
 # # Network Interface Configuration checks
@@ -417,7 +350,6 @@ EOF
 #     record_check "Network Driver Installed (eth0)" "failed"
 # fi
 
-
 # # 7) VLAN Usage Check
 # if ip -d link show | grep -q vlan; then
 #     record_check "VLANs In Use" "passed"
@@ -431,13 +363,3 @@ EOF
 #     ethtool $iface > /tmp/ethtool_$iface.txt 2>/dev/null
 #     record_check "Ethtool Output for $iface (Manual Review in /tmp/ethtool_$iface.txt)" "not_reviewed"
 # done
-
-# # 10) Primary Route Check
-# primary_route=$(ip route show default | head -n 1 | awk '{print $3}')
-# if [[ -n "$primary_route" ]]; then
-#     record_check "Primary Route Detected: $primary_route" "passed"
-# else
-#     record_check "Primary Route Check" "failed"
-# fi
-
-# check_results="${check_results%,}]"
