@@ -136,7 +136,7 @@ echo "--------------------------------------------------------------------------
 echo
 
 # Drive Age (Power_On_Hours)
-echo -e "Drive Age (Power_On_Hours):"
+echo -e "Drive Age:"
 if ! command -v smartctl &> /dev/null; then
     echo "smartctl not found. Please install smartmontools."
 else
@@ -187,14 +187,15 @@ done
 echo "-------------------------------------------------------------------------------"
 echo
 
-echo "System updates available (apt list --upgradable):"
+# System updates
+echo "System updates available:"
 apt list --upgradable 2>/dev/null
 echo "-------------------------------------------------------------------------------"
 echo
 
 # Check Link Speed for eth0
-echo "14) eth0 Link Speed:"
-ethtool eth0 2>/dev/null | grep "Speed" 
+echo "eth0 Link Speed:"
+ethtool eth0 | grep "Speed" 
 echo "-------------------------------------------------------------------------------"
 echo
 
@@ -219,8 +220,8 @@ echo "--------------------------------------------------------------------------
 echo
 
 # Network Driver Installed Check
-echo "4) Network Driver Info for eth0:"
-ethtool -i eth0 2>/dev/null 
+echo "Network Driver Info for eth0:"
+ethtool -i eth0  
 echo "-------------------------------------------------------------------------------"
 echo
 
