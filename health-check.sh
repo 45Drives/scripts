@@ -209,7 +209,7 @@ echo
 echo "ZFS Status:"
 zpool status
 echo "Ceph Status:" 
-ceph -s
+command -v ceph &> /dev/null && ceph -s
 echo "-------------------------------------------------------------------------------"
 echo
 
