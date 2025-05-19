@@ -167,7 +167,7 @@ if [[ -z "$zpools" ]]; then
 else
     for pool in $zpools; do
         echo "Pool: $pool"
-        snapshots=$(zfs list -H -t snapshot -o name -r $pool 2>/dev/null)
+        snapshots=$(zfs list -H -t snapshot -o name -s creation -r $pool 2>/dev/null | tail -n 25)
         if [[ -z "$snapshots" ]]; then
             echo "  No snapshots found."
         else
@@ -189,13 +189,7 @@ echo
 
 # System updates
 echo "System updates available:"
-apt list --upgradable 2>/dev/null
-echo "-------------------------------------------------------------------------------"
-echo
-
-# Check Link Speed for eth0
-echo "eth0 Link Speed:"
-ethtool eth0 | grep "Speed" 
+apt list --upgradable
 echo "-------------------------------------------------------------------------------"
 echo
 
@@ -219,11 +213,6 @@ ceph -s
 echo "-------------------------------------------------------------------------------"
 echo
 
-# Network Driver Installed Check
-echo "Network Driver Info for eth0:"
-ethtool -i eth0  
-echo "-------------------------------------------------------------------------------"
-echo
 
 cat <<EOF
 {
