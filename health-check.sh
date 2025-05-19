@@ -213,7 +213,6 @@ command -v ceph &> /dev/null && ceph -s
 echo "-------------------------------------------------------------------------------"
 echo
 
-
 cat <<EOF
 {
   "filename": "$filename",
@@ -238,26 +237,6 @@ EOF
 # echo "Email config files:"
 # grep -H 'mail' /etc/aliases 2>/dev/null
 # grep -i 'smtp' /etc/postfix/main.cf 2>/dev/null
-# echo
-
-# # 18) Global MacOS Config Check (Look for related configs)
-# echo "Checking for macOS global config in smb.conf:"
-# grep -i 'macos' /etc/samba/smb.conf 2>/dev/null | grep 'global'
-# echo
-
-# # 19) File Sharing Permissions Check
-# echo "Checking for 'valid users' in smb.conf:"
-# grep -i 'valid users' /etc/samba/smb.conf 2>/dev/null
-# echo
-
-# # 20) Windows ACL with Linux/MacOS Support
-# echo "Checking for Windows ACL support in smb.conf:"
-# grep -iq 'nt acl support = yes' /etc/samba/smb.conf 2>/dev/null && echo "ACL support enabled"
-# echo
-
-# # 22) SnapShield Last FireDrill Check
-# echo "Checking for SnapShield fire drill log:"
-# cat /var/log/snapshield_firedrill.log 2>/dev/null || echo "No fire drill log found"
 # echo
 
 # # Raid status checks
@@ -317,39 +296,3 @@ EOF
 # else
 #     record_check "Network Error Logs" "passed"
 # fi
-
-# # 2) Bonding Configuration
-# if grep -q "bonding" /proc/net/dev; then
-#     record_check "Network Bonding Setup" "passed"
-# else
-#     record_check "Network Bonding Setup" "not_applicable"
-# fi
-
-# # 3) MTU Setup Check (for eth0)
-# mtu_size=$(ip link show eth0 | grep -oP 'mtu \K[0-9]+')
-# if [[ -n "$mtu_size" && "$mtu_size" -ge 1500 ]]; then
-#     record_check "MTU Size Setup Properly (eth0)" "passed"
-# else
-#     record_check "MTU Size Setup (eth0)" "failed"
-# fi
-
-# # 4) Network Driver Installed Check
-# if ethtool -i eth0 &> /dev/null; then
-#     record_check "Network Driver Installed (eth0)" "passed"
-# else
-#     record_check "Network Driver Installed (eth0)" "failed"
-# fi
-
-# # 7) VLAN Usage Check
-# if ip -d link show | grep -q vlan; then
-#     record_check "VLANs In Use" "passed"
-# else
-#     record_check "VLANs In Use" "not_applicable"
-# fi
-
-# # 9) ethtool Check for All Interfaces
-# interfaces=$(ls /sys/class/net | grep -v lo)
-# for iface in $interfaces; do
-#     ethtool $iface > /tmp/ethtool_$iface.txt 2>/dev/null
-#     record_check "Ethtool Output for $iface (Manual Review in /tmp/ethtool_$iface.txt)" "not_reviewed"
-# done
