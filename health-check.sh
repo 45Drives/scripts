@@ -50,7 +50,7 @@ selinux_mode=$(sestatus | awk '/Current mode:/ {print $3}')
 echo "SELinux Mode: $selinux_mode"
 # Warn if enforcing
 if [[ "$selinux_mode" == "enforcing" ]]; then
-    echo "⚠️ WARNING: SELinux is in enforcing mode. This may interfere with some operations."
+    echo "WARNING: SELinux is in enforcing mode. This may interfere with some operations."
     echo
 fi
 echo "-------------------------------------------------------------------------------"
@@ -98,7 +98,7 @@ echo
 # Memory and Swap usage
 echo -e "Memory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); 
 if [ "$used_swap" -gt 500 ]; 
-    then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; 
+    then echo -e "\nWARNING: High swap usage detected ($used_swap MB)"; 
 fi
 echo "-------------------------------------------------------------------------------"
 echo 
