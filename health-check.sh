@@ -16,7 +16,7 @@ ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
 disk_usage=$(df / | awk 'NR==2 { printf "%.2f", ($3 / ($3 + $4)) * 100 }')
 disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
 
-# Hardware perspective checks
+# Hardware perspective script
 # Check if tuned is installed
 if ! command -v tuned-adm &> /dev/null; then
     echo
@@ -60,7 +60,7 @@ echo
 if ! command -v lsdev &> /dev/null; then
     echo "lsdev is not installed. Please install the 'procinfo' or equivalent package."
 fi
-echo "Hardware Device Summary (lsdev -cdt):"
+echo "Hardware Device Summary:"
 lsdev -cdt
 echo "-------------------------------------------------------------------------------"
 echo 
@@ -70,7 +70,7 @@ if ! command -v smartctl &> /dev/null; then
     echo "smartctl not found. Please install smartmontools."
 fi
 
-echo "===== Drive SMART Stats Summary ====="
+echo "Drive SMART Stats Summary:"
 
 # Loop through all /dev/sdX devices (exclude partitions like /dev/sda1)
 for i in $(ls /dev | grep -i '^sd[a-z]$'); do
@@ -90,13 +90,13 @@ echo "--------------------------------------------------------------------------
 echo 
 
 # Memory and Swap usage
-echo -e "\nCurrent Uptime:"; uptime;
+echo -e "Current Uptime:"; uptime;
 echo -e "\nReboot History:"; last reboot
 echo "-------------------------------------------------------------------------------"
 echo 
 
 # Memory and Swap usage
-echo -e "\nMemory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); 
+echo -e "Memory + Swap Usage:"; free -m; used_swap=$(free -m | awk '/Swap:/ {print $3}'); 
 if [ "$used_swap" -gt 500 ]; 
     then echo -e "\n⚠️ WARNING: High swap usage detected ($used_swap MB)"; 
 fi
@@ -104,12 +104,12 @@ echo "--------------------------------------------------------------------------
 echo 
 
 # PCI Devices and Drivers
-echo -e "\n=== PCI Devices and Drivers ==="; lspci -nnk; 
+echo -e "PCI Devices and Drivers:"; lspci -nnk; 
 echo "-------------------------------------------------------------------------------"
 echo 
 
 # Network Driver Info
-echo -e "\n=== Network Driver Info ==="; 
+echo -e "Network Driver Info:"; 
 for iface in $(ls /sys/class/net | grep -v lo); 
     do echo -e "\nInterface: $iface"; 
     ethtool -i $iface 2>/dev/null; 
@@ -118,19 +118,19 @@ echo "--------------------------------------------------------------------------
 echo 
 
 # Check for open ports
-echo -e "\nOpen Ports:"
+echo -e "Open Ports:"
 ss -tuln
 echo "-------------------------------------------------------------------------------"
 echo
 
 # Check failed systemd units
-echo -e "\nFailed systemd Units:"
+echo -e "Failed systemd Units:"
 systemctl --failed
 echo "-------------------------------------------------------------------------------"
 echo
 
 # Last boot duration
-echo -e "\nLast Boot Duration:"
+echo -e "Last Boot Duration:"
 systemd-analyze
 echo "-------------------------------------------------------------------------------"
 echo
