@@ -128,6 +128,8 @@ EOF
     fi
     
 
+    #Install Ceph Packahes
+    dnf install ceph -y
 
     #Install 45Drives Repository
     echo "Downloading 45Drives Repo Setup Script"

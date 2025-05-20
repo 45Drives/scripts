@@ -171,6 +171,9 @@ update_system() {
 		exit 0
 	fi
 
+    #Install Ceph Packahes
+    apt install ceph -y
+	
 	# Install 45drives repository
 	echo "Downloading 45Drives Repo Setup Script"
 	curl -sSL https://repo.45drives.com/setup -o setup-repo.sh

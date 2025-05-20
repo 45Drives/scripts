@@ -127,7 +127,9 @@ EOF
         exit
     fi
 
-
+    #Install Ceph Packahes
+    dnf install ceph -y
+    
     #Install 45Drives Repository
     echo "Downloading 45Drives Repo Setup Script"
     curl -sSL https://repo.45drives.com/setup -o setup-repo.sh
