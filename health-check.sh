@@ -10,12 +10,6 @@ platform=$(lsb_release -d | awk -F'\t' '{print $2}')
 
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 
-# Disk & RAM usage
-ram_usage=$(free -m | awk '/Mem:/ { printf "%.2f", $3/$2 * 100 }')
-ram_free=$(awk "BEGIN {printf \"%.2f\", 100 - $ram_usage}")
-disk_usage=$(df / | awk 'NR==2 { printf "%.2f", ($3 / ($3 + $4)) * 100 }')
-disk_free=$(awk "BEGIN {printf \"%.2f\", 100 - $disk_usage}")
-
 # Hardware perspective script
 # Check if tuned is installed
 if ! command -v tuned-adm &> /dev/null; then
@@ -209,7 +203,7 @@ echo
 echo "ZFS Status:"
 zpool status
 echo "Ceph Status:" 
-command -v ceph &> /dev/null && ceph -s
+ceph -s
 echo "-------------------------------------------------------------------------------"
 echo
 
@@ -218,12 +212,6 @@ cat <<EOF
   "filename": "$filename",
   "platform": "$platform",
   "start_time": "$start_time",
-  "system": {
-    "ram_usage_percent": $ram_usage,
-    "ram_free_percent": $ram_free,
-    "disk_usage_percent": $disk_usage,
-    "disk_free_percent": $disk_free
-  },
 }
 EOF
 
@@ -231,12 +219,6 @@ EOF
 # # 13) Check System Install Date (System Age)  
 # echo "System Install Date (based on root dir creation):"
 # ls -lt / | tail -1 | awk '{print $6, $7, $8}'
-# echo
-
-# # 15) Test Email Alert (Automatic attempt)
-# echo "Email config files:"
-# grep -H 'mail' /etc/aliases 2>/dev/null
-# grep -i 'smtp' /etc/postfix/main.cf 2>/dev/null
 # echo
 
 # # Raid status checks
