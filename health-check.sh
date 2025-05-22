@@ -267,14 +267,3 @@ EOF
 #     ethtool $iface 2>/dev/null
 #     echo
 # done
-
-# # Word document checks
-# # Network Interface Configuration checks
-# # 1) Log Network Errors
-# error_logs=$(dmesg | grep -iE 'error|fail|link|network')
-# if [[ -n "$error_logs" ]]; then
-#     echo "$error_logs" > /tmp/network_error_logs.txt
-#     record_check "Network Error Logs Detected (review /tmp/network_error_logs.txt)" "not_reviewed"
-# else
-#     record_check "Network Error Logs" "passed"
-# fi
