@@ -159,7 +159,7 @@ cat <<EOF > "$out_dir/$filename"
 }
 EOF
 
-# Tarball (optional, comment out if not needed) 
+# Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
 
 
