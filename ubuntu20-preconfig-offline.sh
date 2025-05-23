@@ -3,6 +3,7 @@
 # Brett Kelly <bkelly@45drives.com>
 # Josh Boudreau <jboudreau@45drives.com>
 # Dawson Della Valle <ddellavalle@45drives.com>
+# Matthew Hutchinson <mhutchinson@45drives.com>
 
 # Ubuntu 20.04 LTS System Configuration Tweaks
 

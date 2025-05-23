@@ -227,7 +227,7 @@ init_network() {
 		exit $res
 	fi
 	
-	apt install -y network-manager firewalld
+	apt install -y  firewalld
 	
     res=$?
 	
@@ -256,6 +256,7 @@ init_network() {
 	fi
 	
 	ufw disable
+	systemctl disable --now  ufw
 	
     res=$?
 	

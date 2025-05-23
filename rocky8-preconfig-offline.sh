@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Matthew Hutchinson <mhutchinson@45drives.com>
+
 ID=$(grep -w ID= /etc/os-release | cut -d= -f2 | tr -d '"')
 Platform=$(grep -w PLATFORM_ID= /etc/os-release | cut -d= -f2 | tr -d '"')
 

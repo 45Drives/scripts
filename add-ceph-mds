@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Matthew Hutchinson <mhutchinson@45drives.com>
+
 OS=$(cat /etc/os-release | grep -w NAME)
 
 if [ "$OS" == 'NAME="Rocky Linux"' ]; then

@@ -5,12 +5,12 @@
 # Dawson Della Valle <ddellavalle@45drives.com>
 # Matthew Hutchinson <mhutchinson@45drives.com>
 
-# Ubuntu 20.04 LTS System Configuration Tweaks
+# Ubuntu 23.04 LTS System Configuration Tweaks
 
 OS=$(cat /etc/os-release | grep -w VERSION_ID)
 
-if [ "$OS" != 'VERSION_ID="20.04"' ] ; then
-        echo "OS is not Ubuntu20"
+if [ "$OS" != 'VERSION_ID="22.04"' ] ; then
+        echo "OS is not Ubuntu22"
         exit
 fi
 
@@ -210,7 +210,7 @@ init_network() {
 		exit $res
 	fi
 	
-	apt install -y network-manager firewalld
+	apt install -y  firewalld
 	
     res=$?
 	
@@ -219,7 +219,7 @@ init_network() {
 		exit $res
 	fi
 	
-	systemctl enable --now network-manager
+	systemctl enable --now NetworkManager
 	
     res=$?
 	
@@ -239,8 +239,10 @@ init_network() {
 	fi
 	
 	ufw disable
-	
+	systemctl disable --now  ufw
+    
     res=$?
+
 	
     if [[ $res != 0 ]]; then
 		echo "Disabling ufw failed!"
@@ -294,7 +296,7 @@ add_cockpit() {
 	fi
 	
 	apt install -y cockpit cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities  \
-		cockpit-sosreport realmd tuned udisks2-lvm2 zfs-dkms samba winbind nfs-kernel-server nfs-client 45drives-tools cockpit-scheduler cockpit-zfs
+		realmd tuned udisks2-lvm2 zfs-dkms samba winbind nfs-kernel-server nfs-client 45drives-tools cockpit-scheduler cockpit-zfs
 	
     res=$?
 	
