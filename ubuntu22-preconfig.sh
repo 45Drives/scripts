@@ -210,7 +210,7 @@ init_network() {
 		exit $res
 	fi
 	
-	apt install -y  firewalld
+	apt install -y  firewalld network-manager
 	
     res=$?
 	
@@ -240,7 +240,7 @@ init_network() {
 	
 	ufw disable
 	systemctl disable --now  ufw
-    
+
     res=$?
 
 	
@@ -409,7 +409,7 @@ EOF
 
 	sed -i '/^managed/s/false/true/' /etc/NetworkManager/NetworkManager.conf
 	
-	systemctl restart network-manager
+	systemctl restart NetworkManager
 
 	res=$?
 

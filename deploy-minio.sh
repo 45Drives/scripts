@@ -57,7 +57,6 @@ echo "[8/10] Creating default config at /etc/default/minio..."
 sudo bash -c "cat > /etc/default/minio" <<EOF
 # MinIO Configuration
 MINIO_VOLUMES="/${POOL_NAME}/minio/"
-MINIO_OPTS="--console-address :7575"
 MINIO_ACCESS_KEY="${ACCESS_KEY}"
 MINIO_SECRET_KEY="${SECRET_KEY}"
 MINIO_CERTS_DIR="/etc/minio/certs"
@@ -102,7 +101,7 @@ ProtectProc=invisible
 EnvironmentFile=/etc/default/minio
 EnvironmentFile=/etc/minio/credentials
 ExecStartPre=/bin/bash -c "if [ -z \"${MINIO_VOLUMES}\" ]; then echo \"Variable MINIO_VOLUMES not set in /etc/default/minio\"; exit 1; fi"
-ExecStart=/usr/local/bin/minio server --certs-dir ${MINIO_CERTS_DIR} \$MINIO_OPTS \$MINIO_VOLUMES
+ExecStart=/usr/local/bin/minio server --console-address :7575 --certs-dir ${MINIO_CERTS_DIR} \$MINIO_VOLUMES
 
 # Let systemd restart this service always
 Restart=always
