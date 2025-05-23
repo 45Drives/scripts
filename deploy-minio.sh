@@ -11,8 +11,8 @@ echo "=== MinIO ZFS Setup Script ==="
 read -p "Enter ZFS pool name (e.g., tank): " POOL_NAME
 read -p "Enter MINIO Access Key: " ACCESS_KEY
 read -p "Enter MINIO Secret Key: " SECRET_KEY
-read -p "Enter MINIO ADMIN Username: " MINIO_USER
-read -p "Enter MINIO ADMIN Password: " MINIO_PASSWORD
+read -p "Enter MINIO UI ADMIN Username: " MINIO_USER
+read -p "Enter MINIO UI ADMIN Password: " MINIO_PASSWORD
 
 # Detect package manager and OS
 
