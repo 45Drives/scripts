@@ -42,7 +42,23 @@ sudo wget https://dl.min.io/server/minio/release/linux-amd64/minio -O /usr/local
 sudo chmod +x /usr/local/bin/minio
 
 echo "[5/10] Creating ZFS filesystem ${POOL_NAME}/minio..."
-sudo zfs create -o recordsize=1M -o atime=off -o xattr=sa -o compression=lz4 ${POOL_NAME}/minio
+
+if sudo zfs list ${POOL_NAME}/minio &>/dev/null; then
+    echo "❗ The ZFS dataset ${POOL_NAME}/minio already exists."
+    read -p "Do you want to delete and recreate it? This will erase all data in it. (y/n): " RECREATE
+    if [[ "$RECREATE" == "y" ]]; then
+        echo "Destroying existing dataset ${POOL_NAME}/minio..."
+        sudo zfs destroy -r ${POOL_NAME}/minio
+    else
+        echo "Skipping dataset creation. Proceeding with existing ${POOL_NAME}/minio."
+        exit 1
+    fi
+fi
+
+if ! sudo zfs list ${POOL_NAME}/minio &>/dev/null; then
+    echo "Creating new dataset ${POOL_NAME}/minio..."
+    sudo zfs create -o recordsize=1M -o atime=off -o xattr=sa -o compression=lz4 ${POOL_NAME}/minio
+fi
 
 echo "[6/10] Setting ownership for ZFS mount..."
 sudo chown -R minio-user:minio-user /${POOL_NAME}/minio/
