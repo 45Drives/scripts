@@ -105,9 +105,22 @@ free -m > "$out_dir/memory.txt"
 # NIC packet errors
 {
     echo "Packet Errors:"
-    for iface in $(ls /sys/class/net | grep -v lo); do
-        echo -n "$iface: "
-        cat /sys/class/net/$iface/statistics/{rx_errors,tx_errors} | xargs echo "RX TX"
+    for iface in $(ls /sys/class/net); do
+        # Skip 'lo' and non-directory entries
+        if [ "$iface" = "lo" ] || [ ! -d "/sys/class/net/$iface/statistics" ]; then
+            continue
+        fi
+
+        rx_file="/sys/class/net/$iface/statistics/rx_errors"
+        tx_file="/sys/class/net/$iface/statistics/tx_errors"
+
+        if [ -f "$rx_file" ] && [ -f "$tx_file" ]; then
+            rx=$(cat "$rx_file")
+            tx=$(cat "$tx_file")
+            echo "$iface: RX $rx  TX $tx"
+        else
+            echo "$iface: statistics not available"
+        fi
     done
 } > "$out_dir/packet_errors.txt"
 
