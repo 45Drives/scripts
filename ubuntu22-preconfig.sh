@@ -393,7 +393,7 @@ network:
 EOF
 
 	[[ -f /etc/netplan/00-installer-config.yaml ]] && mv /etc/netplan/00-installer-config.yaml /etc/netplan/00-installer-config.yaml.backup
-
+    rm -f /etc/netplan/50-cloud-init.yaml
 	netplan try
 
 	res=$?

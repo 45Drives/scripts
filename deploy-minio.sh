@@ -49,16 +49,27 @@ if sudo zfs list ${POOL_NAME}/minio &>/dev/null; then
     if [[ "$RECREATE" == "y" ]]; then
         echo "Destroying existing dataset ${POOL_NAME}/minio..."
         sudo zfs destroy -r ${POOL_NAME}/minio
+        echo "Creating new dataset ${POOL_NAME}/minio..."
+        sudo zfs create -o recordsize=1M -o atime=off -o xattr=sa -o compression=lz4 ${POOL_NAME}/minio
+    elif [[ "$RECREATE" == "n" ]]; then
+        read -p "Do you want to deploy on top of existing data? (y/n): " REUSE
+        if [[ "$REUSE" == "y" ]]; then
+            echo "Reusing existing dataset ${POOL_NAME}/minio..."
+        else
+            echo "Exiting"
+            exit 1
+        fi
     else
-        echo "Skipping dataset creation. Proceeding with existing ${POOL_NAME}/minio."
+        echo "Invalid option. Exiting."
         exit 1
     fi
-fi
-
-if ! sudo zfs list ${POOL_NAME}/minio &>/dev/null; then
+else
     echo "Creating new dataset ${POOL_NAME}/minio..."
     sudo zfs create -o recordsize=1M -o atime=off -o xattr=sa -o compression=lz4 ${POOL_NAME}/minio
 fi
+
+
+
 
 echo "[6/10] Setting ownership for ZFS mount..."
 sudo chown -R minio-user:minio-user /${POOL_NAME}/minio/
@@ -100,6 +111,8 @@ if [[ "$USE_SSL" == "y" ]]; then
     sudo openssl req -new -x509 -key /etc/minio/certs/private.key -out /etc/minio/certs/public.crt -days 3650
     sudo chown -R minio-user:minio-user /etc/minio/certs
     sudo chmod 600 /etc/minio/certs/private.key
+else 
+echo -e "\033[1;36mPlace SSL certs in \"/etc/minio/certs\" for custom certificates\033[0m"
 fi
 
 echo "Creating systemd service for MinIO..."

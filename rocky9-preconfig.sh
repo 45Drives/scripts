@@ -106,6 +106,61 @@ install_epel_release() {
     return 0
 }
 
+install_zfs() {
+    local res
+
+    echo "Pulling down ZFS packages"
+    source /etc/os-release
+
+    # Install the ZFS repo
+    dnf install -y https://zfsonlinux.org/epel/zfs-release-2-3$(rpm --eval "%{dist}").noarch.rpm
+    res=$?
+    if [[ $res != 0 ]]; then  
+        echo "ZFS package install failed!"
+        exit $res
+    fi
+
+    # Enable the zfs repo if not already
+    dnf config-manager --set-enabled zfs
+
+    echo "Installing dependencies: dkms, kernel headers, ZFS"
+    dnf install -y epel-release
+    dnf install -y dkms gcc make perl kernel-devel kernel-headers zfs
+    res=$?
+    if [[ $res != 0 ]]; then 
+        echo "ZFS and dependencies install failed"
+        exit $res
+    fi
+
+    echo "Attempting DKMS build for ZFS"
+    dkms autoinstall
+    res=$?
+    if [[ $res != 0 ]]; then
+        echo "DKMS build failed — ZFS kernel module not built"
+        exit $res
+    fi
+
+    echo "Setting ZFS to load on boot"
+    echo zfs > /etc/modules-load.d/zfs.conf
+    res=$?
+    if [[ $res != 0 ]]; then
+        echo "Step Failed"
+        exit $res
+    fi
+
+    echo "Loading ZFS"
+    modprobe zfs
+    res=$?
+    if [[ $res != 0 ]]; then 
+        echo "modprobe zfs failed — ensure ZFS kernel module is built and installed"
+        exit $res
+    fi
+
+    echo "ZFS installed and loaded successfully"
+    return 0
+}
+
+
 selinux_permissive() {
     echo "Setting SELinux to permissive"
     setenforce 0
@@ -123,7 +178,7 @@ houston_configuration() {
     dnf config-manager --set-enabled crb
     dnf install -y \
         cockpit cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing \
-        cockpit-45drives-hardware cockpit-identities cockpit-storaged cockpit-scheduler zfs zfs-dkms
+        cockpit-45drives-hardware cockpit-identities cockpit-storaged cockpit-scheduler cockpit-zfs zfs zfs-dkms
     res=$?
     if [[ $res != 0 ]]; then
         echo "Error Installing Cockpit"
@@ -216,25 +271,30 @@ case $progress in
         ;&
     2)
         echo "################################################################################"
-        selinux_permissive
+        install_zfs
         echo 3 > .rocky-preconfig.progress
         ;&
     3)
         echo "################################################################################"
-        houston_configuration
+        selinux_permissive
         echo 4 > .rocky-preconfig.progress
         ;&
     4)
         echo "################################################################################"
-        update_system
+        houston_configuration
         echo 5 > .rocky-preconfig.progress
         ;&
     5)
         echo "################################################################################"
-        setup_done
+        update_system
         echo 6 > .rocky-preconfig.progress
         ;&
     6)
+        echo "################################################################################"
+        setup_done
+        echo 7 > .rocky-preconfig.progress
+        ;&
+    7)
         echo "Setup successfully finished the previous time running this script."
         ;;
 esac
