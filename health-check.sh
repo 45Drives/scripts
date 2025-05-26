@@ -159,8 +159,8 @@ ip route show default > "$out_dir/default_route.txt"
 zpool status > "$out_dir/zfs_status.txt" 2>/dev/null
 ceph -s > "$out_dir/ceph_status.txt" 2>/dev/null
 apt list --upgradable > "$out_dir/updates.txt" 2>/dev/null
-systemctl is-active winbind > "$out_dir/winbind_status.txt" 2>/dev/null
-systemctl is-active alertmanager > "$out_dir/alertmanager_status.txt" 2>/dev/null
+systemctl status winbind > "$out_dir/winbind_status.txt" 2>&1
+systemctl status alertmanager > "$out_dir/alertmanager_status.txt" 2>&1
 
 # JSON Summary File
 cat <<EOF > "$out_dir/$filename"
