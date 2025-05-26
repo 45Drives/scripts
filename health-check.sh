@@ -124,29 +124,26 @@ free -m > "$out_dir/memory.txt"
     done
 } > "$out_dir/packet_errors.txt"
 
-# ZFS: Failed Drives Detection
+# ZFS
 {
+    echo "# ZFS Status"
+    zpool status 2>/dev/null
+
     echo "# ZFS Failed Drives Detected"
     zpool status 2>/dev/null | grep -iE 'DEGRADED|FAULTED|OFFLINE' || echo "No failed drives detected"
-} > "$out_dir/zfs_failed_drives.txt"
+
+    echo "# ZFS Autotrim Status"
+    zpool get autotrim 2>/dev/null
+
+    echo "# ZFS Pool Capacity"
+    zpool list -H -o name,capacity 2>/dev/null
+} > "$out_dir/zfs_summary.txt"
 
 # ZFS: Pool Errors
 {
     echo "# ZFS Pool Errors"
     zpool status 2>/dev/null | grep -E 'errors:|read:|write:|cksum:'
 } > "$out_dir/zfs_pool_errors.txt"
-
-# ZFS: Autotrim Status
-{
-    echo "# ZFS Autotrim Status"
-    zpool get autotrim 2>/dev/null
-} > "$out_dir/zfs_autotrim.txt"
-
-# ZFS: Pool Capacity 
-{
-    echo "# ZFS Pool Capacity"
-    zpool list -H -o name,capacity 2>/dev/null
-} > "$out_dir/zfs_capacity.txt"
 
 # Additional files:
 uptime > "$out_dir/uptime.txt"
@@ -156,7 +153,6 @@ ss -tuln > "$out_dir/open_ports.txt"
 systemctl --failed > "$out_dir/failed_units.txt"
 systemd-analyze > "$out_dir/boot_time.txt"
 ip route show default > "$out_dir/default_route.txt"
-zpool status > "$out_dir/zfs_status.txt" 2>/dev/null
 ceph -s > "$out_dir/ceph_status.txt" 2>/dev/null
 apt list --upgradable > "$out_dir/updates.txt" 2>/dev/null
 systemctl status winbind > "$out_dir/winbind_status.txt" 2>&1
