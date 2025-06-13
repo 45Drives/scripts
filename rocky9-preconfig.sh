@@ -29,6 +29,21 @@ if [[ "$euid" != 0 ]]; then
 	exit 1
 fi
 
+# Check for available updates
+echo "Checking for system updates..."
+updates=$(dnf check-update --quiet)
+exit_code=$?
+
+if [ "$exit_code" -eq 100 ]; then
+    echo "Updates are available. Please run 'dnf update' and reboot the system before proceeding."
+    exit 1
+elif [ "$exit_code" -eq 0 ]; then
+    echo "System is up to date. Continuing with the script..."
+else
+    echo "There was an issue checking for updates. Exit code: $exit_code"
+    exit $exit_code
+fi
+
 welcome() {
 	local response
 	cat <<EOF
@@ -175,10 +190,10 @@ houston_configuration() {
 
     echo "Installing Cockpit and Modules"
     dnf -y install dnf-plugins-core
-    dnf config-manager --set-enabled crb
+    crb enable
     dnf install -y \
-        cockpit cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing \
-        cockpit-45drives-hardware cockpit-identities cockpit-storaged cockpit-scheduler cockpit-zfs zfs zfs-dkms
+        cockpit cockpit-benchmark cockpit-navigator cockpit-file-sharing \
+        cockpit-45drives-hardware cockpit-identities cockpit-bridge cockpit-storaged cockpit-scheduler cockpit-zfs zfs zfs-dkms 
     res=$?
     if [[ $res != 0 ]]; then
         echo "Error Installing Cockpit"

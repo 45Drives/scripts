@@ -82,8 +82,8 @@ houston_configuration() {
 
     echo "Installing Cockpit and Modules"
     dnf -y install dnf-plugins-core
-    dnf config-manager --set-enabled powertools
-    dnf install -y --nobest cockpit cockpit-pcp cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-storaged cockpit-scheduler 
+    crb enable
+    dnf install -y --nobest cockpit cockpit-benchmark cockpit-bridge cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-storaged cockpit-scheduler 
     res=$?
     if [[ $res != 0 ]]; then
         echo "Error Installing Cockpit"
