@@ -106,6 +106,17 @@ install_epel_release() {
     return 0
 }
 
+
+selinux_permissive() {
+    echo "Setting SELinux to permissive"
+    setenforce 0
+
+    echo "Ensuring Setting Persists on Reboot"
+    sed -i 's/^\(SELINUX=\).*$/\1permissive/' /etc/selinux/config
+    return 0
+}
+
+
 install_zfs() {
     local res
 
@@ -148,14 +159,6 @@ install_zfs() {
     return 0
 }
 
-selinux_permissive() {
-    echo "Setting SELinux to permissive"
-    setenforce 0
-
-    echo "Ensuring Setting Persists on Reboot"
-    sed -i 's/^\(SELINUX=\).*$/\1permissive/' /etc/selinux/config
-    return 0
-}
 
 houston_configuration() {
     local res
