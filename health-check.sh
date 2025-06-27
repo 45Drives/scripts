@@ -168,10 +168,8 @@ zfs list > "$out_dir/zfs_usage.txt" 2>/dev/null || echo "zfs list failed" > "$ou
 
 # Package Versions
 if [ "$os_id" == "rocky" ] || grep -qi "rocky" /etc/os-release; then
-    echo "Rocky packages:"
     rpm -qa --queryformat '%{NAME} %{VERSION}-%{RELEASE}\n' > "$out_dir/rocky_packages.txt"
 elif [ "$os_id" == "ubuntu" ] || grep -qi "ubuntu" /etc/os-release; then
-    echo "Ubuntu packages:"
     dpkg-query -W -f='${binary:Package} ${Version}\n' > "$out_dir/ubuntu_packages.txt"
 else
     echo "Unsupported OS for package query. (No Rocky or Ubuntu detected)" > "$out_dir/package_versions.txt"
