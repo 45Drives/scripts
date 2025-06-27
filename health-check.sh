@@ -5,7 +5,7 @@
 # 45Drives
 
 timestamp=$(date +"%Y%m%d_%H%M%S")
-out_dir="$HOME/Desktop/health-check_$timestamp"
+out_dir="/tmp/health-check_$timestamp"
 mkdir -p "$out_dir"
 logfile="$out_dir/report.log"
 filename="report_$timestamp.json"
@@ -21,7 +21,7 @@ fi
 
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 echo "Starting health check script at $start_time for platform: $platform" | tee -a "$logfile" 
-echo "The Health Check Report has been saved on the Desktop." | tee -a "$logfile"
+echo "The Health Check Report has been saved in tmp/ folder." | tee -a "$logfile"
 
 # Get the current tuned profile
 {
