@@ -5,7 +5,7 @@
 # 45Drives
 
 timestamp=$(date +"%Y%m%d_%H%M%S")
-out_dir="$HOME/Desktop/health-check_$timestamp"
+out_dir="/tmp/health-check_$timestamp"
 mkdir -p "$out_dir"
 logfile="$out_dir/report.log"
 filename="report_$timestamp.json"
