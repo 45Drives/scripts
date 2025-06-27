@@ -158,6 +158,8 @@ apt list --upgradable > "$out_dir/updates.txt" 2>/dev/null
 systemctl status winbind > "$out_dir/winbind_status.txt" 2>&1
 systemctl status alertmanager > "$out_dir/alertmanager_status.txt" 2>&1
 
+cp /etc/samba/smb.conf "$out_dir/samba_conf.txt" 2>/dev/null || echo "/etc/samba/smb.conf not found" > "$out_dir/samba_conf.txt"
+
 # JSON Summary File
 cat <<EOF > "$out_dir/$filename"
 {
