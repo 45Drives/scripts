@@ -163,6 +163,9 @@ cp /etc/samba/smb.conf "$out_dir/samba_conf.txt" 2>/dev/null || echo "/etc/samba
 cp /etc/exports.d/cockpit-file-sharing.exports "$out_dir/nfs_exports.txt" 2>/dev/null || echo "/etc/exports.d/cockpit-file-sharing.exports not found" > "$out_dir/nfs_exports.txt"
 cp /etc/scst.conf "$out_dir/iscsi_conf.txt" 2>/dev/null || echo "/etc/scst.conf not found" > "$out_dir/iscsi_conf.txt"
 
+# ZFS Usage
+zfs list > "$out_dir/zfs_usage.txt" 2>/dev/null || echo "zfs list failed" > "$out_dir/zfs_usage.txt"
+
 # JSON Summary File
 cat <<EOF > "$out_dir/$filename"
 {
