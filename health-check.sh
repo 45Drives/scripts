@@ -208,6 +208,14 @@ ceph mon stat > "$out_dir/ceph/mon_stat" 2>/dev/null
 ceph mon dump > "$out_dir/ceph/mon_dump" 2>/dev/null
 ceph mon getmap -o "$out_dir/ceph/mon_map" 2>/dev/null
 ceph mon metadata > "$out_dir/ceph/mon_metadata" 2>/dev/null
+ceph osd tree > "$out_dir/ceph/osd_tree" 2>/dev/null
+ceph osd df > "$out_dir/ceph/osd_df" 2>/dev/null
+ceph osd dump > "$out_dir/ceph/osd_dump" 2>/dev/null
+ceph osd stat > "$out_dir/ceph/osd_stat" 2>/dev/null
+ceph osd getcrushmap -o "$out_dir/ceph/osd_crushmap" 2>/dev/null
+ceph osd getmap -o "$out_dir/ceph/osd_map" 2>/dev/null
+ceph osd metadata > "$out_dir/ceph/osd_metadata" 2>/dev/null
+ceph osd perf > "$out_dir/ceph/osd_perf" 2>/dev/null
 
 # Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
