@@ -7,6 +7,7 @@
 timestamp=$(date +"%Y%m%d_%H%M%S")
 out_dir="/tmp/health-check_$timestamp"
 mkdir -p "$out_dir"
+mkdir -p "$out_dir/ceph"
 logfile="$out_dir/report.log"
 filename="report_$timestamp.json"
 
@@ -147,6 +148,8 @@ free -m > "$out_dir/memory.txt"
 
 # Additional files:
 uptime > "$out_dir/uptime.txt"
+uname -a > "$out_dir/kernel_version.txt"
+cat /etc/os-release > "$out_dir/linux_distribution.txt"
 last reboot > "$out_dir/reboot_history.txt"
 lspci -nnk > "$out_dir/pci_devices.txt"
 ss -tuln > "$out_dir/open_ports.txt"
@@ -185,6 +188,51 @@ cat <<EOF > "$out_dir/$filename"
   "output_directory": "$out_dir"
 }
 EOF
+
+#Ceph commands
+ceph status > "$out_dir/ceph/status" 2>/dev/null
+ceph -v > "$out_dir/ceph/version" 2>/dev/null
+ceph versions > "$out_dir/ceph/versions" 2>/dev/null
+ceph features > "$out_dir/ceph/features" 2>/dev/null
+ceph fsid > "$out_dir/ceph/fsid" 2>/dev/null
+cp /etc/ceph/ceph.conf "$out_dir/ceph/ceph.conf" 2>/dev/null
+ceph config dump > "$out_dir/ceph/config" 2>/dev/null
+ceph health > "$out_dir/ceph/health_summary" 2>/dev/null
+ceph health detail > "$out_dir/ceph/health_detail" 2>/dev/null
+ceph report > "$out_dir/ceph/health_report" 2>/dev/null
+ceph df > "$out_dir/ceph/health_df" 2>/dev/null
+if command -v lsb_release &> /dev/null; then
+    lsb_release -a > "$out_dir/lsb_release.txt"
+fi
+ceph mon stat > "$out_dir/ceph/mon_stat" 2>/dev/null
+ceph mon dump > "$out_dir/ceph/mon_dump" 2>/dev/null
+ceph mon getmap -o "$out_dir/ceph/mon_map" 2>/dev/null
+ceph mon metadata > "$out_dir/ceph/mon_metadata" 2>/dev/null
+ceph osd tree > "$out_dir/ceph/osd_tree" 2>/dev/null
+ceph osd df > "$out_dir/ceph/osd_df" 2>/dev/null
+ceph osd dump > "$out_dir/ceph/osd_dump" 2>/dev/null
+ceph osd stat > "$out_dir/ceph/osd_stat" 2>/dev/null
+ceph osd getcrushmap -o "$out_dir/ceph/osd_crushmap" 2>/dev/null
+ceph osd getmap -o "$out_dir/ceph/osd_map" 2>/dev/null
+ceph osd metadata > "$out_dir/ceph/osd_metadata" 2>/dev/null
+ceph osd perf > "$out_dir/ceph/osd_perf" 2>/dev/null
+ceph pg stat > "$out_dir/ceph/pg_stat" 2>/dev/null
+ceph pg dump > "$out_dir/ceph/pg_dump" 2>/dev/null
+ceph pg dump_stuck > "$out_dir/ceph/pg_dump_stuck" 2>/dev/null
+ceph mds metadata > "$out_dir/ceph/mds_metadata" 2>/dev/null
+ceph mds dump > "$out_dir/ceph/mds_dump" 2>/dev/null
+ceph mds stat > "$out_dir/ceph/mds_stat" 2>/dev/null
+ceph fs dump > "$out_dir/ceph/fs_dump" 2>/dev/null
+ceph fs status > "$out_dir/ceph/fs_status" 2>/dev/null
+ceph device check-health > "$out_dir/ceph/device_health" 2>/dev/null
+ceph device ls > "$out_dir/ceph/device_ls" 2>/dev/null
+
+# Per-device health metrics
+if command -v ceph &> /dev/null && ceph device ls &> /dev/null; then
+    for dev in $(ceph device ls 2>/dev/null | awk '{print $1}' | grep -v NAME); do
+        ceph device get-health-metrics "$dev" > "$out_dir/ceph/device_health_$dev.txt" 2>/dev/null
+    done
+fi
 
 # Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
