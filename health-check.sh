@@ -197,6 +197,12 @@ ceph features > "$out_dir/ceph/features" 2>/dev/null
 ceph fsid > "$out_dir/ceph/fsid" 2>/dev/null
 cp /etc/ceph/ceph.conf "$out_dir/ceph/ceph.conf" 2>/dev/null
 ceph config dump > "$out_dir/ceph/config" 2>/dev/null
-
+ceph health > "$out_dir/ceph/health_summary" 2>/dev/null
+ceph health detail > "$out_dir/ceph/health_detail" 2>/dev/null
+ceph report > "$out_dir/ceph/health_report" 2>/dev/null
+ceph df > "$out_dir/ceph/health_df" 2>/dev/null
+if command -v lsb_release &> /dev/null; then
+    lsb_release -a > "$out_dir/lsb_release.txt"
+fi
 # Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
