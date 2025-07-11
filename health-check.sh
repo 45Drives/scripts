@@ -216,6 +216,14 @@ ceph osd getcrushmap -o "$out_dir/ceph/osd_crushmap" 2>/dev/null
 ceph osd getmap -o "$out_dir/ceph/osd_map" 2>/dev/null
 ceph osd metadata > "$out_dir/ceph/osd_metadata" 2>/dev/null
 ceph osd perf > "$out_dir/ceph/osd_perf" 2>/dev/null
+ceph pg stat > "$out_dir/ceph/pg_stat" 2>/dev/null
+ceph pg dump > "$out_dir/ceph/pg_dump" 2>/dev/null
+ceph pg dump_stuck > "$out_dir/ceph/pg_dump_stuck" 2>/dev/null
+ceph mds metadata > "$out_dir/ceph/mds_metadata" 2>/dev/null
+ceph mds dump > "$out_dir/ceph/mds_dump" 2>/dev/null
+ceph mds stat > "$out_dir/ceph/mds_stat" 2>/dev/null
+ceph fs dump > "$out_dir/ceph/fs_dump" 2>/dev/null
+ceph fs status > "$out_dir/ceph/fs_status" 2>/dev/null
 
 # Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
