@@ -204,5 +204,10 @@ ceph df > "$out_dir/ceph/health_df" 2>/dev/null
 if command -v lsb_release &> /dev/null; then
     lsb_release -a > "$out_dir/lsb_release.txt"
 fi
+ceph mon stat > "$out_dir/ceph/mon_stat" 2>/dev/null
+ceph mon dump > "$out_dir/ceph/mon_dump" 2>/dev/null
+ceph mon getmap -o "$out_dir/ceph/mon_map" 2>/dev/null
+ceph mon metadata > "$out_dir/ceph/mon_metadata" 2>/dev/null
+
 # Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
