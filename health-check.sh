@@ -7,6 +7,7 @@
 timestamp=$(date +"%Y%m%d_%H%M%S")
 out_dir="/tmp/health-check_$timestamp"
 mkdir -p "$out_dir"
+mkdir -p "$out_dir/ceph"
 logfile="$out_dir/report.log"
 filename="report_$timestamp.json"
 
@@ -147,6 +148,8 @@ free -m > "$out_dir/memory.txt"
 
 # Additional files:
 uptime > "$out_dir/uptime.txt"
+uname -a > "$out_dir/kernel_version.txt"
+cat /etc/os-release > "$out_dir/linux_distribution.txt"
 last reboot > "$out_dir/reboot_history.txt"
 lspci -nnk > "$out_dir/pci_devices.txt"
 ss -tuln > "$out_dir/open_ports.txt"
@@ -185,6 +188,15 @@ cat <<EOF > "$out_dir/$filename"
   "output_directory": "$out_dir"
 }
 EOF
+
+#Ceph commands
+ceph status > "$out_dir/ceph/status" 2>/dev/null
+ceph -v > "$out_dir/ceph/version" 2>/dev/null
+ceph versions > "$out_dir/ceph/versions" 2>/dev/null
+ceph features > "$out_dir/ceph/features" 2>/dev/null
+ceph fsid > "$out_dir/ceph/fsid" 2>/dev/null
+cp /etc/ceph/ceph.conf "$out_dir/ceph/ceph.conf" 2>/dev/null
+ceph config dump > "$out_dir/ceph/config" 2>/dev/null
 
 # Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
