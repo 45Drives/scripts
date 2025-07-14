@@ -8,6 +8,7 @@ timestamp=$(date +"%Y%m%d_%H%M%S")
 out_dir="/tmp/health-check_$timestamp"
 mkdir -p "$out_dir"
 mkdir -p "$out_dir/ceph"
+mkdir -p "$out_dir/ceph/device_health"
 logfile="$out_dir/report.log"
 filename="report_$timestamp.json"
 
@@ -224,15 +225,29 @@ ceph mds dump > "$out_dir/ceph/mds_dump" 2>/dev/null
 ceph mds stat > "$out_dir/ceph/mds_stat" 2>/dev/null
 ceph fs dump > "$out_dir/ceph/fs_dump" 2>/dev/null
 ceph fs status > "$out_dir/ceph/fs_status" 2>/dev/null
-ceph device check-health > "$out_dir/ceph/device_health" 2>/dev/null
+ceph device check-health > "$out_dir/ceph/check-health" 2>/dev/null
 ceph device ls > "$out_dir/ceph/device_ls" 2>/dev/null
 
-# Per-device health metrics
 if command -v ceph &> /dev/null && ceph device ls &> /dev/null; then
-    for dev in $(ceph device ls 2>/dev/null | awk '{print $1}' | grep -v NAME); do
-        ceph device get-health-metrics "$dev" > "$out_dir/ceph/device_health_$dev.txt" 2>/dev/null
+    ceph device ls --format json 2>/dev/null | jq -r '.[].id' | while read -r devid; do
+        osd_id=$(ceph osd metadata 2>/dev/null | jq -r ".[] | select(.device_ids[]? == \"$devid\") | .id" | head -n 1)
+        
+        if [[ -n "$osd_id" ]]; then
+            filename="osd.$osd_id.txt"
+        else
+            # fallback to dev ID if OSD not found
+            filename="${devid}.txt"
+        fi
+
+        ceph device get-health-metrics "$devid" > "$out_dir/ceph/device_health/$filename" 2>/dev/null
     done
 fi
+# Per-device health metrics
+# if command -v ceph &> /dev/null && ceph device ls &> /dev/null; then
+#     for dev in $(ceph device ls 2>/dev/null | awk '{print $1}' | grep -v NAME); do
+#         ceph device get-health-metrics "$dev" > "$out_dir/ceph/device_health_$dev.txt" 2>/dev/null
+#     done
+# fi
 
 # Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
