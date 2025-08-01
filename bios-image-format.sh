@@ -10,14 +10,14 @@ if ! command -v convert >/dev/null; then
 fi
 
 usage() {
-    printf 'Usage: %s [ -h ] MANUFACTURER IMAGE OUTPUT.bmp\n' "$0"
+    printf 'Usage: %s [ -h ] MANUFACTURER IMAGE OUTPUT\n' "$0"
     echo
     echo 'Options:'
     echo '  -h              - Print this message'
     echo '  -b BG_COLOR     - Set background fill color'
     echo '  MANUFACTURER - Mobo manufacturer to auto set W and H'
     echo '  IMAGE           - input image file'
-    echo '  OUTPUT.bmp      - output image file'
+    echo '  OUTPUT          - output image file (extension auto added)'
 }
 
 MFR_LUT='
