@@ -9,6 +9,7 @@ out_dir="/tmp/health-check_$timestamp"
 mkdir -p "$out_dir"
 mkdir -p "$out_dir/ceph"
 mkdir -p "$out_dir/ceph/device_health"
+kernel_output="$out_dir/kernel_versions_cluster.txt"
 logfile="$out_dir/report.log"
 filename="report_$timestamp.json"
 
@@ -244,6 +245,29 @@ if command -v ceph &> /dev/null && ceph device ls &> /dev/null; then
         ceph device get-health-metrics "$dev" > "$out_dir/ceph/device_health/$filename" 2>/dev/null
     done
 fi
+
+# Kernel versions
+{
+  echo "# Kernel Versions Collected from All Cluster Nodes"
+  echo "# (via SSH based on /etc/hosts entries)"
+  echo "# Timestamp: $(date)"
+} > "$kernel_output"
+
+# Extract valid remote hostnames from /etc/hosts 
+remote_hosts=$(awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ && $2 !~ /localhost/ {print $2}' /etc/hosts | sort -u)
+
+for host in $remote_hosts; do
+  echo "Collecting kernel version from $host..."
+  echo "[$host]" >> "$kernel_output"
+
+  ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" 'uname -a' 2>/dev/null >> "$kernel_output"
+
+  if [ $? -ne 0 ]; then
+    echo "Connection failed or uname unavailable" >> "$kernel_output"
+  fi
+
+  echo "" >> "$kernel_output"
+done
 
 # Tarball folder
 tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
