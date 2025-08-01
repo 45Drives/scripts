@@ -9,23 +9,26 @@ if ! command -v convert >/dev/null; then
     exit 1
 fi
 
-usage() {
-    printf 'Usage: %s [ -h ] MANUFACTURER IMAGE OUTPUT\n' "$0"
-    echo
-    echo 'Options:'
-    echo '  -h              - Print this message'
-    echo '  -b BG_COLOR     - Set background fill color'
-    echo '  MANUFACTURER - Mobo manufacturer to auto set W and H'
-    echo '  IMAGE           - input image file'
-    echo '  OUTPUT          - output image file (extension auto added)'
-}
-
 MFR_LUT='
 SUPERMICRO 1024 768 truecolor 8 bmp
 GIGABYTE 1024 768 truecolor 8 bmp
 ASROCK 1024 768 truecolor 8 jpg
 AMI 300 300 truecolor 8 bmp
 '
+
+usage() {
+    printf 'Usage: %s [ -h ] MANUFACTURER IMAGE OUTPUT\n' "$0"
+    echo
+    echo 'Options:'
+    echo '  -h              - Print this message'
+    echo '  -b BG_COLOR     - Set background fill color, default = black'
+    echo '  MANUFACTURER    - Mobo manufacturer'
+    echo '  IMAGE           - input image file'
+    echo '  OUTPUT          - output image file (extension auto added)'
+    echo
+    echo 'MANUFACTURER values:'
+    awk '/.+/{print "  " $1}' <<<"$MFR_LUT"
+}
 
 BG=black
 
