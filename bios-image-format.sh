@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+#
+# Convert any image into appropriate dimensions and color profile for BIOS splash screen
+#
+# Josh Boudreau 2025 <jboudreau@45drives.com>
 
 if ! command -v convert >/dev/null; then
     echo "Missing 'convert' from imagemagick!" >&2
