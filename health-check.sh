@@ -11,6 +11,8 @@ mkdir -p "$out_dir/ceph"
 mkdir -p "$out_dir/ceph/device_health"
 kernel_output="$out_dir/kernel_versions_cluster.txt"
 logfile="$out_dir/report.log"
+ctdb_dir="$out_dir/ctdb"
+mkdir -p "$ctdb_dir"
 filename="report_$timestamp.json"
 
 if [ -f /etc/os-release ]; then
@@ -191,7 +193,7 @@ cat <<EOF > "$out_dir/$filename"
 }
 EOF
 
-#Ceph commands
+# Ceph commands
 ceph status > "$out_dir/ceph/status" 2>/dev/null
 ceph -v > "$out_dir/ceph/version" 2>/dev/null
 ceph versions > "$out_dir/ceph/versions" 2>/dev/null
@@ -269,5 +271,30 @@ for host in $remote_hosts; do
   echo "" >> "$kernel_output"
 done
 
+# CTDB detection and gathering
+for host in $remote_hosts; do
+  echo "[$host]" | tee -a "$logfile"
+  ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" 'systemctl is-active --quiet ctdb' 2>/dev/null
+
+  if [ $? -eq 0 ]; then
+    echo "CTDB is running on $host. Gathering status..." | tee -a "$logfile"
+    
+    # Save CTDB output to file
+    {
+      echo "===== ctdb status ($host) ====="
+      ssh "$host" 'ctdb status' 2>&1
+      echo
+
+      echo "===== ctdb ip ($host) ====="
+      ssh "$host" 'ctdb ip' 2>&1
+    } > "$ctdb_dir/$host.txt"
+
+  else
+    echo "CTDB not running on $host." | tee -a "$logfile"
+  fi
+done
+
 # Tarball folder
-tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
+if tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"; then
+  rm -rf "$out_dir"
+fi
