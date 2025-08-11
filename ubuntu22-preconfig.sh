@@ -296,7 +296,9 @@ add_cockpit() {
 	fi
 	
 	apt install -y cockpit cockpit-benchmark cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities  \
-		realmd tuned udisks2-lvm2 zfs-dkms samba winbind nfs-kernel-server nfs-client 45drives-tools cockpit-scheduler cockpit-zfs
+		realmd tuned udisks2-lvm2 zfs-dkms samba winbind nfs-kernel-server nfs-client 45drives-tools cockpit-scheduler cockpit-zfs pcp pcp-zeroconf
+	
+	systemctl enable --now pmcd pmlogger
 	
     res=$?
 	
