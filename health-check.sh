@@ -28,6 +28,27 @@ start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 echo "Starting health check script at $start_time for platform: $platform" | tee -a "$logfile" 
 echo "The Health Check Report has been saved in tmp/ folder." | tee -a "$logfile"
 
+# Extract valid remote hostnames from /etc/hosts 
+remote_hosts=$(awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ && $2 !~ /localhost/ {print $2}' /etc/hosts | sort -u)
+
+collect_from_all_hosts() {
+    local cmd="$1"
+    local file_prefix="$2"
+
+    for host in local $remote_hosts; do
+        if [ "$host" = "local" ]; then
+            out_file="$out_dir/${file_prefix}_$(hostname).txt"
+            echo "[$(hostname)]" > "$out_file"
+            eval "$cmd" >> "$out_file" 2>&1
+        else
+            out_file="$out_dir/${file_prefix}_${host}.txt"
+            echo "[$host]" > "$out_file"
+            ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" "$cmd" >> "$out_file" 2>&1 || \
+                echo "Connection failed or command unavailable" >> "$out_file"
+        fi
+    done
+}
+
 # Get the current tuned profile
 {
     echo "Checking Tuned..."
@@ -54,112 +75,182 @@ if [[ "$selinux_mode" == "enforcing" ]]; then
 fi
 
 # RAM usage
-free -m > "$out_dir/memory.txt"
+collect_from_all_hosts "free -h" "memory"
 
 # Swap usage
-{
-    echo "Memory + Swap Usage:"
-    free -m
-    used_swap=$(free -m | awk '/Swap:/ {print $3}')
-    if [ "$used_swap" -gt 500 ]; then
-        echo
-        echo "WARNING: High swap usage detected ($used_swap MB)"
-    fi
-} > "$out_dir/swap.txt"
+collect_from_all_hosts "free -m && echo && used_swap=\$(free -m | awk '/Swap:/ {print \$3}') && [ \"\$used_swap\" -gt 500 ] && echo WARNING: High swap usage detected" "swap"
+
+# {
+#     echo "Memory + Swap Usage:"
+#     free -m
+#     used_swap=$(free -m | awk '/Swap:/ {print $3}')
+#     if [ "$used_swap" -gt 500 ]; then
+#         echo
+#         echo "WARNING: High swap usage detected ($used_swap MB)"
+#     fi
+# } > "$out_dir/swap.txt"
 
 # SMART Drive Summary
-{
-    echo "SMART Drive Summary"
-    for i in $(ls /dev | grep -E '^sd[a-z]$'); do
-        echo -e "\nDevice: /dev/$i"
-        if [[ -d /dev/disk/by-vdev ]]; then
-            slot=$(ls -l /dev/disk/by-vdev/ | grep -w "$i" | awk '{print $9}')
-            echo "Slot: ${slot:-Not labeled}"
-        else
-            echo "Slot: (by-vdev mapping not found)"
-        fi
-        smartctl -x /dev/$i 2>/dev/null | grep -iE \
-            'serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector'
-    done
-} > "$out_dir/smartctl.txt"
+collect_from_all_hosts '
+for i in $(ls /dev | grep -E "^sd[a-z]$"); do
+    echo -e "\nDevice: /dev/$i"
+    if [[ -d /dev/disk/by-vdev ]]; then
+        slot=$(ls -l /dev/disk/by-vdev/ | grep -w "$i" | awk "{print \$9}")
+        echo "Slot: ${slot:-Not labeled}"
+    else
+        echo "Slot: (by-vdev mapping not found)"
+    fi
+    smartctl -x /dev/$i 2>/dev/null | grep -iE "serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector"
+done
+' "smartctl"
+
+# {
+#     echo "SMART Drive Summary"
+#     for i in $(ls /dev | grep -E '^sd[a-z]$'); do
+#         echo -e "\nDevice: /dev/$i"
+#         if [[ -d /dev/disk/by-vdev ]]; then
+#             slot=$(ls -l /dev/disk/by-vdev/ | grep -w "$i" | awk '{print $9}')
+#             echo "Slot: ${slot:-Not labeled}"
+#         else
+#             echo "Slot: (by-vdev mapping not found)"
+#         fi
+#         smartctl -x /dev/$i 2>/dev/null | grep -iE \
+#             'serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector'
+#     done
+# } > "$out_dir/smartctl.txt"
 
 # Drive Age
-{
-    echo "Drive Age (Power_On_Hours):"
-    for i in $(ls /dev | grep -i '^sd[a-z]$'); do
-        echo -e "\nDevice: /dev/$i"
-        power_on_hours=$(smartctl -A /dev/$i 2>/dev/null | awk '/Power_On_Hours/ {print $10}')
-        if [[ -n "$power_on_hours" ]]; then
-            echo "Power-On Hours: $power_on_hours"
-        else
-            echo "Power-On Hours not available."
-        fi
-    done
-} > "$out_dir/drive_age.txt"
+collect_from_all_hosts '
+for i in $(ls /dev | grep -i "^sd[a-z]$"); do
+    echo -e "\nDevice: /dev/$i"
+    power_on_hours=$(smartctl -A /dev/$i 2>/dev/null | awk "/Power_On_Hours/ {print \$10}")
+    if [[ -n "$power_on_hours" ]]; then
+        echo "Power-On Hours: $power_on_hours"
+    else
+        echo "Power-On Hours not available."
+    fi
+done
+' "drive_age"
+
+# {
+#     echo "Drive Age (Power_On_Hours):"
+#     for i in $(ls /dev | grep -i '^sd[a-z]$'); do
+#         echo -e "\nDevice: /dev/$i"
+#         power_on_hours=$(smartctl -A /dev/$i 2>/dev/null | awk '/Power_On_Hours/ {print $10}')
+#         if [[ -n "$power_on_hours" ]]; then
+#             echo "Power-On Hours: $power_on_hours"
+#         else
+#             echo "Power-On Hours not available."
+#         fi
+#     done
+# } > "$out_dir/drive_age.txt"
 
 # Snapshots
-{
-    echo "ZFS Snapshots:"
-    zpools=$(zpool list -H -o name 2>/dev/null)
-    for pool in $zpools; do
-        echo "Pool: $pool"
-        zfs list -H -t snapshot -o name -s creation -r "$pool" 2>/dev/null | tail -n 25
-    done
-} > "$out_dir/zfs_snapshots.txt"
+collect_from_all_hosts '
+zpools=$(zpool list -H -o name 2>/dev/null)
+for pool in $zpools; do
+    echo "Pool: $pool"
+    zfs list -H -t snapshot -o name -s creation -r "$pool" 2>/dev/null | tail -n 25
+done
+' "zfs_snapshots"
+
+# {
+#     echo "ZFS Snapshots:"
+#     zpools=$(zpool list -H -o name 2>/dev/null)
+#     for pool in $zpools; do
+#         echo "Pool: $pool"
+#         zfs list -H -t snapshot -o name -s creation -r "$pool" 2>/dev/null | tail -n 25
+#     done
+# } > "$out_dir/zfs_snapshots.txt"
 
 # NIC packet errors
-{
-    echo "Packet Errors:"
-    for iface in $(ls /sys/class/net); do
-        # Skip 'lo' and non-directory entries
-        if [ "$iface" = "lo" ] || [ ! -d "/sys/class/net/$iface/statistics" ]; then
-            continue
-        fi
+collect_from_all_hosts '
+for iface in $(ls /sys/class/net); do
+    if [ "$iface" = "lo" ] || [ ! -d "/sys/class/net/$iface/statistics" ]; then
+        continue
+    fi
+    rx=$(cat "/sys/class/net/$iface/statistics/rx_errors" 2>/dev/null || echo "NA")
+    tx=$(cat "/sys/class/net/$iface/statistics/tx_errors" 2>/dev/null || echo "NA")
+    echo "$iface: RX $rx  TX $tx"
+done
+' "packet_errors"
 
-        rx_file="/sys/class/net/$iface/statistics/rx_errors"
-        tx_file="/sys/class/net/$iface/statistics/tx_errors"
+# {
+#     echo "Packet Errors:"
+#     for iface in $(ls /sys/class/net); do
+#         # Skip 'lo' and non-directory entries
+#         if [ "$iface" = "lo" ] || [ ! -d "/sys/class/net/$iface/statistics" ]; then
+#             continue
+#         fi
 
-        if [ -f "$rx_file" ] && [ -f "$tx_file" ]; then
-            rx=$(cat "$rx_file")
-            tx=$(cat "$tx_file")
-            echo "$iface: RX $rx  TX $tx"
-        else
-            echo "$iface: statistics not available"
-        fi
-    done
-} > "$out_dir/packet_errors.txt"
+#         rx_file="/sys/class/net/$iface/statistics/rx_errors"
+#         tx_file="/sys/class/net/$iface/statistics/tx_errors"
+
+#         if [ -f "$rx_file" ] && [ -f "$tx_file" ]; then
+#             rx=$(cat "$rx_file")
+#             tx=$(cat "$tx_file")
+#             echo "$iface: RX $rx  TX $tx"
+#         else
+#             echo "$iface: statistics not available"
+#         fi
+#     done
+# } > "$out_dir/packet_errors.txt"
 
 # ZFS
-{
-    echo "# ZFS Status"
-    zpool status 2>/dev/null
+collect_from_all_hosts '
+echo "# ZFS Status"
+zpool status 2>/dev/null
+echo "# ZFS Failed Drives Detected"
+zpool status 2>/dev/null | grep -iE "DEGRADED|FAULTED|OFFLINE" || echo "No failed drives detected"
+echo "# ZFS Autotrim Status"
+zpool get autotrim 2>/dev/null
+echo "# ZFS Pool Capacity"
+zpool list -H -o name,capacity 2>/dev/null
+' "zfs_summary"
 
-    echo "# ZFS Failed Drives Detected"
-    zpool status 2>/dev/null | grep -iE 'DEGRADED|FAULTED|OFFLINE' || echo "No failed drives detected"
+# {
+#     echo "# ZFS Status"
+#     zpool status 2>/dev/null
 
-    echo "# ZFS Autotrim Status"
-    zpool get autotrim 2>/dev/null
+#     echo "# ZFS Failed Drives Detected"
+#     zpool status 2>/dev/null | grep -iE 'DEGRADED|FAULTED|OFFLINE' || echo "No failed drives detected"
 
-    echo "# ZFS Pool Capacity"
-    zpool list -H -o name,capacity 2>/dev/null
-} > "$out_dir/zfs_summary.txt"
+#     echo "# ZFS Autotrim Status"
+#     zpool get autotrim 2>/dev/null
+
+#     echo "# ZFS Pool Capacity"
+#     zpool list -H -o name,capacity 2>/dev/null
+# } > "$out_dir/zfs_summary.txt"
 
 # ZFS: Pool Errors
-{
-    echo "# ZFS Pool Errors"
-    zpool status 2>/dev/null | grep -E 'errors:|read:|write:|cksum:'
-} > "$out_dir/zfs_pool_errors.txt"
+collect_from_all_hosts '
+echo "# ZFS Pool Errors"
+zpool status 2>/dev/null | grep -E "errors:|read:|write:|cksum:"
+' "zfs_pool_errors"
+
+# {
+#     echo "# ZFS Pool Errors"
+#     zpool status 2>/dev/null | grep -E 'errors:|read:|write:|cksum:'
+# } > "$out_dir/zfs_pool_errors.txt"
 
 # Additional files:
-uptime > "$out_dir/uptime.txt"
-uname -a > "$out_dir/kernel_version.txt"
+collect_from_all_hosts "uptime" "uptime"
+collect_from_all_hosts "uname -a" "kernel_version"
+collect_from_all_hosts "lspci -nnk" "pci_devices"
+collect_from_all_hosts "ss -tuln" "open_ports"
+collect_from_all_hosts "systemctl --failed" "failed_units"
+collect_from_all_hosts "systemd-analyze" "boot_time"
+collect_from_all_hosts "ip route show default" "default_route"
+
+# uptime > "$out_dir/uptime.txt"
+# uname -a > "$out_dir/kernel_version.txt"
 cat /etc/os-release > "$out_dir/linux_distribution.txt"
 last reboot > "$out_dir/reboot_history.txt"
-lspci -nnk > "$out_dir/pci_devices.txt"
-ss -tuln > "$out_dir/open_ports.txt"
-systemctl --failed > "$out_dir/failed_units.txt"
-systemd-analyze > "$out_dir/boot_time.txt"
-ip route show default > "$out_dir/default_route.txt"
+# lspci -nnk > "$out_dir/pci_devices.txt"
+# ss -tuln > "$out_dir/open_ports.txt"
+# systemctl --failed > "$out_dir/failed_units.txt"
+# systemd-analyze > "$out_dir/boot_time.txt"
+# ip route show default > "$out_dir/default_route.txt"
 ceph -s > "$out_dir/ceph_status.txt" 2>/dev/null
 apt list --upgradable > "$out_dir/updates.txt" 2>/dev/null
 systemctl status winbind > "$out_dir/winbind_status.txt" 2>&1
@@ -254,9 +345,6 @@ fi
   echo "# (via SSH based on /etc/hosts entries)"
   echo "# Timestamp: $(date)"
 } > "$kernel_output"
-
-# Extract valid remote hostnames from /etc/hosts 
-remote_hosts=$(awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ && $2 !~ /localhost/ {print $2}' /etc/hosts | sort -u)
 
 for host in $remote_hosts; do
   echo "Collecting kernel version from $host..."
