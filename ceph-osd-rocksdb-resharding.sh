@@ -6,7 +6,7 @@ ceph osd set noout
 for i in $(ceph osd ls-tree $(hostname -s)); do
     echo "Resharding OSD $i"
     OSD_DIR="/var/lib/ceph/osd/ceph-$i";
-    if [ ! -d "$OSD_DIR"]; then
+    if [ ! -d "$OSD_DIR" ]; then
         echo "$OSD_DIR does not exist on $(hostname -s), skipping"
         continue
     fi
