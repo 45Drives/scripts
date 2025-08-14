@@ -34,18 +34,19 @@ remote_hosts=$(awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ && $2 !~ /localhost/ {print $2}
 collect_from_all_hosts() {
     local cmd="$1"
     local file_prefix="$2"
+    local out_file="$out_dir/${file_prefix}.txt"   # single file for all hosts
 
+    > "$out_file"  # clear old file
     for host in local $remote_hosts; do
         if [ "$host" = "local" ]; then
-            out_file="$out_dir/${file_prefix}_$(hostname).txt"
-            echo "[$(hostname)]" > "$out_file"
+            echo "[$(hostname)]" >> "$out_file"
             eval "$cmd" >> "$out_file" 2>&1
         else
-            out_file="$out_dir/${file_prefix}_${host}.txt"
-            echo "[$host]" > "$out_file"
+            echo "[$host]" >> "$out_file"
             ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" "$cmd" >> "$out_file" 2>&1 || \
                 echo "Connection failed or command unavailable" >> "$out_file"
         fi
+        echo "" >> "$out_file"  # blank line between hosts
     done
 }
 
