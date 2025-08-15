@@ -92,14 +92,14 @@ EOF
             echo "Configuring Ceph Stable repository for version 18"
         cat <<EOF > /etc/yum.repos.d/ceph_stable.repo
 [ceph_stable]
-baseurl = http://download.ceph.com/rpm-reef/el9/\$basearch
+baseurl = http://download.ceph.com/rpm-18.2.4/el9/\$basearch
 gpgcheck = 1
 gpgkey = https://download.ceph.com/keys/release.asc
 name = Ceph Stable \$basearch repo
 priority = 2
 
 [ceph_stable_noarch]
-baseurl = http://download.ceph.com/rpm-reef/el9/noarch
+baseurl = http://download.ceph.com/rpm-18.2.4/el9/noarch
 gpgcheck = 1
 gpgkey = https://download.ceph.com/keys/release.asc
 name = Ceph Stable noarch repo
