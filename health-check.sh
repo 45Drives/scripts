@@ -303,7 +303,9 @@ collect_from_all_hosts "systemctl status winbind" "winbind_status"
 # systemctl status winbind > "$out_dir/winbind_status.txt" 2>&1
 
 ceph -s > "$out_dir/ceph_status.txt" 2>/dev/null
-systemctl status alertmanager > "$out_dir/alertmanager_status.txt" 2>&1
+systemctl status alertmanager --no-pager --lines=20 \
+  | sed '/\/usr\/libexec\/podman\/conmon/ s/ .*/ .../' \
+  > "$out_dir/alertmanager_status.txt" 2>&1
 
 # Config Files
 collect_from_all_hosts "cat /etc/samba/smb.conf 2>/dev/null || echo '/etc/samba/smb.conf not found'" "samba_conf"
