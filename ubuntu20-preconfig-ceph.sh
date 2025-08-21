@@ -341,46 +341,6 @@ add_cockpit() {
 		exit $res
 	fi
 	
-	# Install cockpit override manifests for 45ddrives-hardware and apps
-	
-    cat >> /usr/share/cockpit/45drives-disks/override.json <<EOF
-{
-	"menu": {
-		"45drives-disks": {
-			"order": 110
-		}
-	}
-}
-EOF
-
-	cat >> /usr/share/cockpit/45drives-motherboard/override.json <<EOF
-{
-	"menu": {
-		"45drives-motherboard": {
-			"order": 111
-		}
-	}
-}
-EOF
-
-	cat >> /usr/share/cockpit/45drives-system/override.json <<EOF
-{
-	"menu": {
-		"45drives-system": {
-			"order": 112
-		}
-	}
-}
-EOF
-
-	cat >> /usr/share/cockpit/apps/override.json <<EOF
-{
-	"tools": {
-		"index": null
-		}
-}
-EOF
-
 	systemctl enable --now cockpit.socket
 
 	res=$?
