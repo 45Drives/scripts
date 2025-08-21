@@ -9,10 +9,9 @@ out_dir="/tmp/health-check_$timestamp"
 mkdir -p "$out_dir"
 mkdir -p "$out_dir/ceph"
 mkdir -p "$out_dir/ceph/device_health"
-kernel_output="$out_dir/kernel_versions_cluster.txt"
-logfile="$out_dir/report.log"
 ctdb_dir="$out_dir/ctdb"
 mkdir -p "$ctdb_dir"
+logfile="$out_dir/ctdb/report.log"
 filename="report_$timestamp.json"
 
 if [ -f /etc/os-release ]; then
@@ -34,46 +33,74 @@ remote_hosts=$(awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ && $2 !~ /localhost/ {print $2}
 collect_from_all_hosts() {
     local cmd="$1"
     local file_prefix="$2"
-    local out_file="$out_dir/${file_prefix}.txt"   # single file for all hosts
+    local out_file="$out_dir/${file_prefix}.txt"
 
-    > "$out_file"  # clear old file
-    for host in local $remote_hosts; do
-        if [ "$host" = "local" ]; then
+    > "$out_file"  
+
+    for host in $remote_hosts; do
+        if [ "$host" = "$(hostname)" ]; then
+            # Local host
             echo "[$(hostname)]" >> "$out_file"
             eval "$cmd" >> "$out_file" 2>&1
         else
-            echo "[$host]" >> "$out_file"
-            ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" "$cmd" >> "$out_file" 2>&1 || \
-                echo "Connection failed or command unavailable" >> "$out_file"
+            # Remote host
+            if ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" "true" 2>/dev/null; then
+                echo "[$host]" >> "$out_file"
+                ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" "$cmd" >> "$out_file" 2>&1
+            else
+                echo "[$host]" >> "$out_file"
+                echo "" >> "$out_file"
+            fi
         fi
-        echo "" >> "$out_file"  # blank line between hosts
+        echo "" >> "$out_file"
     done
 }
 
 # Get the current tuned profile
-{
-    echo "Checking Tuned..."
-    if ! command -v tuned-adm &> /dev/null; then
-        echo "Tuned is not installed."
-    else
-        tuned-adm active
-    fi
-} > "$out_dir/tuned.txt"
+collect_from_all_hosts '
+if ! command -v tuned-adm &> /dev/null; then
+    echo "Tuned is not installed."
+else
+    tuned-adm active
+fi
+' "tuned"
+
+# {
+#     echo "Checking Tuned..."
+#     if ! command -v tuned-adm &> /dev/null; then
+#         echo "Tuned is not installed."
+#     else
+#         tuned-adm active
+#     fi
+# } > "$out_dir/tuned.txt"
 
 # Get the current SELinux mode
-{
-    echo "Checking SELinux..."
-    if ! command -v sestatus &> /dev/null; then
-        echo "sestatus not found."
-    else
-        sestatus
+collect_from_all_hosts '
+if ! command -v sestatus &> /dev/null; then
+    echo "sestatus not found."
+else
+    sestatus
+    mode=$(sestatus 2>/dev/null | awk "/Current mode:/ {print \$3}")
+    if [[ "$mode" == "enforcing" ]]; then
+        echo "WARNING: SELinux is in enforcing mode. This may interfere with some operations."
     fi
-} > "$out_dir/selinux.txt"
-
-selinux_mode=$(sestatus 2>/dev/null | awk '/Current mode:/ {print $3}')
-if [[ "$selinux_mode" == "enforcing" ]]; then
-    echo "WARNING: SELinux is in enforcing mode. This may interfere with some operations." >> "$out_dir/selinux.txt"
 fi
+' "selinux"
+
+
+# {
+#     echo "Checking SELinux..."
+#     if ! command -v sestatus &> /dev/null; then
+#         echo "sestatus not found."
+#     else
+#         sestatus
+#     fi
+# } > "$out_dir/selinux.txt"
+
+# selinux_mode=$(sestatus 2>/dev/null | awk '/Current mode:/ {print $3}')
+# if [[ "$selinux_mode" == "enforcing" ]]; then
+#     echo "WARNING: SELinux is in enforcing mode. This may interfere with some operations." >> "$out_dir/selinux.txt"
+# fi
 
 # RAM usage
 collect_from_all_hosts "free -h" "memory"
@@ -93,17 +120,34 @@ collect_from_all_hosts "free -m && echo && used_swap=\$(free -m | awk '/Swap:/ {
 
 # SMART Drive Summary
 collect_from_all_hosts '
-for i in $(ls /dev | grep -E "^sd[a-z]$"); do
-    echo -e "\nDevice: /dev/$i"
+# Build list of devices + slots
+mapfile -t drives < <(
     if [[ -d /dev/disk/by-vdev ]]; then
-        slot=$(ls -l /dev/disk/by-vdev/ | grep -w "$i" | awk "{print \$9}")
-        echo "Slot: ${slot:-Not labeled}"
+        # Extract "slot device" pairs and sort by slot
+        ls -l /dev/disk/by-vdev/ \
+          | awk "{print \$9,\$11}" \
+          | sed "s/.*\\///" \
+          | sort -V
     else
-        echo "Slot: (by-vdev mapping not found)"
+        # Fallback to device order if no slots
+        for dev in /dev/sd[a-z]; do
+            echo "Not_labeled $(basename $dev)"
+        done
     fi
-    smartctl -x /dev/$i 2>/dev/null | grep -iE "serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector"
+)
+
+# Print drives in slot order
+for entry in "${drives[@]}"; do
+    slot=$(echo "$entry" | awk "{print \$1}")
+    dev=$(echo "$entry" | awk "{print \$2}")
+    devpath="/dev/$dev"
+
+    echo -e "\nDevice: $devpath"
+    echo "Slot: $slot"
+    smartctl -x "$devpath" 2>/dev/null | grep -iE "serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector"
 done
 ' "smartctl"
+
 
 # {
 #     echo "SMART Drive Summary"
@@ -242,25 +286,29 @@ collect_from_all_hosts "ss -tuln" "open_ports"
 collect_from_all_hosts "systemctl --failed" "failed_units"
 collect_from_all_hosts "systemd-analyze" "boot_time"
 collect_from_all_hosts "ip route show default" "default_route"
+collect_from_all_hosts "cat /etc/os-release" "linux_distribution"
+collect_from_all_hosts "last reboot" "reboot_history"
+collect_from_all_hosts "systemctl status winbind" "winbind_status"
 
 # uptime > "$out_dir/uptime.txt"
 # uname -a > "$out_dir/kernel_version.txt"
-cat /etc/os-release > "$out_dir/linux_distribution.txt"
-last reboot > "$out_dir/reboot_history.txt"
+# cat /etc/os-release > "$out_dir/linux_distribution.txt"
+# last reboot > "$out_dir/reboot_history.txt"
 # lspci -nnk > "$out_dir/pci_devices.txt"
 # ss -tuln > "$out_dir/open_ports.txt"
 # systemctl --failed > "$out_dir/failed_units.txt"
 # systemd-analyze > "$out_dir/boot_time.txt"
 # ip route show default > "$out_dir/default_route.txt"
+# apt list --upgradable > "$out_dir/updates.txt" 2>/dev/null
+# systemctl status winbind > "$out_dir/winbind_status.txt" 2>&1
+
 ceph -s > "$out_dir/ceph_status.txt" 2>/dev/null
-apt list --upgradable > "$out_dir/updates.txt" 2>/dev/null
-systemctl status winbind > "$out_dir/winbind_status.txt" 2>&1
 systemctl status alertmanager > "$out_dir/alertmanager_status.txt" 2>&1
 
 # Config Files
-cp /etc/samba/smb.conf "$out_dir/samba_conf.txt" 2>/dev/null || echo "/etc/samba/smb.conf not found" > "$out_dir/samba_conf.txt"
-cp /etc/exports.d/cockpit-file-sharing.exports "$out_dir/nfs_exports.txt" 2>/dev/null || echo "/etc/exports.d/cockpit-file-sharing.exports not found" > "$out_dir/nfs_exports.txt"
-cp /etc/scst.conf "$out_dir/iscsi_conf.txt" 2>/dev/null || echo "/etc/scst.conf not found" > "$out_dir/iscsi_conf.txt"
+collect_from_all_hosts "cat /etc/samba/smb.conf 2>/dev/null || echo '/etc/samba/smb.conf not found'" "samba_conf"
+collect_from_all_hosts "cat /etc/exports.d/cockpit-file-sharing.exports 2>/dev/null || echo '/etc/exports.d/cockpit-file-sharing.exports not found'" "nfs_exports"
+collect_from_all_hosts "cat /etc/scst.conf 2>/dev/null || echo '/etc/scst.conf not found'" "iscsi_conf"
 
 # ZFS Usage
 zfs list > "$out_dir/zfs_usage.txt" 2>/dev/null || echo "zfs list failed" > "$out_dir/zfs_usage.txt"
@@ -298,7 +346,7 @@ ceph health detail > "$out_dir/ceph/health_detail" 2>/dev/null
 ceph report > "$out_dir/ceph/health_report" 2>/dev/null
 ceph df > "$out_dir/ceph/health_df" 2>/dev/null
 if command -v lsb_release &> /dev/null; then
-    lsb_release -a > "$out_dir/lsb_release.txt"
+    collect_from_all_hosts "lsb_release -a" "lsb_release"
 fi
 ceph mon stat > "$out_dir/ceph/mon_stat" 2>/dev/null
 ceph mon dump > "$out_dir/ceph/mon_dump" 2>/dev/null
@@ -326,7 +374,6 @@ ceph device ls > "$out_dir/ceph/device_ls" 2>/dev/null
 # Per-device health metrics
 if command -v ceph &> /dev/null && ceph device ls &> /dev/null; then
     for dev in $(ceph device ls 2>/dev/null | awk '{print $1}' | grep -v NAME); do
-        # Find the OSD ID associated with this device ID
         osd_id=$(ceph osd metadata -f json 2>/dev/null | jq -r ".[] | select(.device_ids[]? == \"$dev\") | .id" | head -n 1)
 
         if [[ -n "$osd_id" && "$osd_id" != "null" ]]; then
@@ -339,26 +386,6 @@ if command -v ceph &> /dev/null && ceph device ls &> /dev/null; then
         ceph device get-health-metrics "$dev" > "$out_dir/ceph/device_health/$filename" 2>/dev/null
     done
 fi
-
-# Kernel versions
-{
-  echo "# Kernel Versions Collected from All Cluster Nodes"
-  echo "# (via SSH based on /etc/hosts entries)"
-  echo "# Timestamp: $(date)"
-} > "$kernel_output"
-
-for host in $remote_hosts; do
-  echo "Collecting kernel version from $host..."
-  echo "[$host]" >> "$kernel_output"
-
-  ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" 'uname -a' 2>/dev/null >> "$kernel_output"
-
-  if [ $? -ne 0 ]; then
-    echo "Connection failed or uname unavailable" >> "$kernel_output"
-  fi
-
-  echo "" >> "$kernel_output"
-done
 
 # CTDB detection and gathering
 for host in $remote_hosts; do
