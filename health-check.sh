@@ -86,31 +86,15 @@ collect_from_all_hosts "free -m && echo && used_swap=\$(free -m | awk '/Swap:/ {
 
 # SMART Drive Summary
 collect_from_all_hosts '
-# Build list of devices + slots
-mapfile -t drives < <(
+for i in $(ls /dev | grep -i "^sd" | grep -v "[0-9]$"); do
+    echo -e "\nDevice: /dev/$i"
+    echo -n "Slot: "
     if [[ -d /dev/disk/by-vdev ]]; then
-        # Extract "slot device" pairs and sort by slot
-        ls -l /dev/disk/by-vdev/ \
-          | awk "{print \$9,\$11}" \
-          | sed "s/.*\\///" \
-          | sort -V
+        ls -l /dev/disk/by-vdev/ | grep -wi "$i" | awk "{print \$9}" || echo "Not labeled"
     else
-        # Fallback to device order if no slots
-        for dev in /dev/sd[a-z]; do
-            echo "Not_labeled $(basename $dev)"
-        done
+        echo "Not labeled"
     fi
-)
-
-# Print drives in slot order
-for entry in "${drives[@]}"; do
-    slot=$(echo "$entry" | awk "{print \$1}")
-    dev=$(echo "$entry" | awk "{print \$2}")
-    devpath="/dev/$dev"
-
-    echo -e "\nDevice: $devpath"
-    echo "Slot: $slot"
-    smartctl -x "$devpath" 2>/dev/null | grep -iE "serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector"
+    smartctl -x /dev/$i 2>/dev/null | grep -iE "serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector"
 done
 ' "smartctl"
 
