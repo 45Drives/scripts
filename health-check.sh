@@ -218,7 +218,7 @@ ceph -v > "$out_dir/ceph/version" 2>/dev/null
 ceph versions > "$out_dir/ceph/versions" 2>/dev/null
 ceph features > "$out_dir/ceph/features" 2>/dev/null
 ceph fsid > "$out_dir/ceph/fsid" 2>/dev/null
-cp /etc/ceph/ceph.conf "$out_dir/ceph/ceph.conf" 2>/dev/null
+collect_from_all_hosts "cat /etc/ceph/ceph.conf 2>/dev/null || echo '/etc/ceph/ceph.conf not found'" "ceph_conf"
 ceph config dump > "$out_dir/ceph/config" 2>/dev/null
 ceph health > "$out_dir/ceph/health_summary" 2>/dev/null
 ceph health detail > "$out_dir/ceph/health_detail" 2>/dev/null
