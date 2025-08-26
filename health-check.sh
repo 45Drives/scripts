@@ -180,9 +180,12 @@ collect_from_all_hosts "systemctl status winbind" "winbind_status"
 collect_from_all_hosts "apt list --upgradable" "updates"
 
 ceph -s > "$out_dir/ceph_status.txt" 2>/dev/null
-systemctl status alertmanager --no-pager --lines=20 \
-  | sed '/\/usr\/libexec\/podman\/conmon/ s/ .*/ .../' \
-  > "$out_dir/alertmanager_status.txt" 2>&1
+
+collect_from_all_hosts '
+systemctl status alertmanager --no-pager --lines=20 2>/dev/null \
+  | sed "/\/usr\/libexec\/podman\/conmon/ s/ .*/ .../" \
+  || echo "alertmanager service not found"
+' "alertmanager_status"
 
 # Config Files
 collect_from_all_hosts "cat /etc/samba/smb.conf 2>/dev/null || echo '/etc/samba/smb.conf not found'" "samba_conf"
