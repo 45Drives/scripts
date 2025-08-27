@@ -11,7 +11,7 @@ for i in $(ceph osd ls-tree $(hostname -s)); do
     echo "$OSD_DIR exists on $(hostname -s), running BlueFS migration from slow to db"
     set -x
     systemctl stop ceph-osd@$i
-    ceph-bluestore-tool --path $OSD_DIR --devs-source $OSD_DIR/block --dev-target $OSD_DIR/block.db
+    ceph-bluestore-tool bluefs-bdev-migrate --path $OSD_DIR --devs-source $OSD_DIR/block --dev-target $OSD_DIR/block.db
     systemctl start ceph-osd@$i
     set +x
 done
