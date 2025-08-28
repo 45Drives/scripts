@@ -86,31 +86,15 @@ collect_from_all_hosts "free -m && echo && used_swap=\$(free -m | awk '/Swap:/ {
 
 # SMART Drive Summary
 collect_from_all_hosts '
-# Build list of devices + slots
-mapfile -t drives < <(
+for i in $(ls /dev | grep -i "^sd" | grep -v "[0-9]$"); do
+    echo -e "\nDevice: /dev/$i"
+    echo -n "Slot: "
     if [[ -d /dev/disk/by-vdev ]]; then
-        # Extract "slot device" pairs and sort by slot
-        ls -l /dev/disk/by-vdev/ \
-          | awk "{print \$9,\$11}" \
-          | sed "s/.*\\///" \
-          | sort -V
+        ls -l /dev/disk/by-vdev/ | grep -wi "$i" | awk "{print \$9}" || echo "Not labeled"
     else
-        # Fallback to device order if no slots
-        for dev in /dev/sd[a-z]; do
-            echo "Not_labeled $(basename $dev)"
-        done
+        echo "Not labeled"
     fi
-)
-
-# Print drives in slot order
-for entry in "${drives[@]}"; do
-    slot=$(echo "$entry" | awk "{print \$1}")
-    dev=$(echo "$entry" | awk "{print \$2}")
-    devpath="/dev/$dev"
-
-    echo -e "\nDevice: $devpath"
-    echo "Slot: $slot"
-    smartctl -x "$devpath" 2>/dev/null | grep -iE "serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector"
+    smartctl -x /dev/$i 2>/dev/null | grep -iE "serial number|reallocated_sector_ct|power_cycle_count|reported_uncorrect|command_timeout|offline_uncorrectable|current_pending_sector"
 done
 ' "smartctl"
 
@@ -177,11 +161,15 @@ collect_from_all_hosts "ip route show default" "default_route"
 collect_from_all_hosts "cat /etc/os-release" "linux_distribution"
 collect_from_all_hosts "last reboot" "reboot_history"
 collect_from_all_hosts "systemctl status winbind" "winbind_status"
+collect_from_all_hosts "apt list --upgradable" "updates"
 
 ceph -s > "$out_dir/ceph_status.txt" 2>/dev/null
-systemctl status alertmanager --no-pager --lines=20 \
-  | sed '/\/usr\/libexec\/podman\/conmon/ s/ .*/ .../' \
-  > "$out_dir/alertmanager_status.txt" 2>&1
+
+collect_from_all_hosts '
+systemctl status alertmanager --no-pager --lines=20 2>/dev/null \
+  | sed "/\/usr\/libexec\/podman\/conmon/ s/ .*/ .../" \
+  || echo "alertmanager service not found"
+' "alertmanager_status"
 
 # Config Files
 collect_from_all_hosts "cat /etc/samba/smb.conf 2>/dev/null || echo '/etc/samba/smb.conf not found'" "samba_conf"
@@ -217,7 +205,7 @@ ceph -v > "$out_dir/ceph/version" 2>/dev/null
 ceph versions > "$out_dir/ceph/versions" 2>/dev/null
 ceph features > "$out_dir/ceph/features" 2>/dev/null
 ceph fsid > "$out_dir/ceph/fsid" 2>/dev/null
-cp /etc/ceph/ceph.conf "$out_dir/ceph/ceph.conf" 2>/dev/null
+collect_from_all_hosts "cat /etc/ceph/ceph.conf 2>/dev/null || echo '/etc/ceph/ceph.conf not found'" "ceph_conf"
 ceph config dump > "$out_dir/ceph/config" 2>/dev/null
 ceph health > "$out_dir/ceph/health_summary" 2>/dev/null
 ceph health detail > "$out_dir/ceph/health_detail" 2>/dev/null
