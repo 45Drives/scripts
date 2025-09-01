@@ -1,6 +1,9 @@
 #!/bin/bash
 
+# Bailey Allison <ballison@45drives.com>
 # Matthew Hutchinson <mhutchinson@45drives.com>
+
+#v7
 
 OS=$(cat /etc/os-release | grep -w NAME)
 
@@ -13,20 +16,11 @@ else
         exit
 fi
 
-# Prompt for ceph.conf and keyring
-while true; do
-read -p "Is the /etc/ceph/ceph.conf file and the admin keyring on this host (yes/no): " response
-
-if [[ "$response" == "no" ]]; then
-    echo "Exiting..."
-    exit 0
-elif [[ "$response" == "yes" ]]; then
-    echo "Continuing..."
-    break
-else
-    echo "Invalid response. Please enter 'yes' or 'no'."
+# Check for ceph.conf and admin keyring
+if [[ ! -f "/etc/ceph/ceph.conf" || ! -f "/etc/ceph/ceph.client.admin.keyring" ]]; then
+    echo "ceph conf and admin keyring not on host, exiting"
+    exit 1
 fi
-done
 
 # Create Keyring Directory and make Keyring
 echo "Creating Keyring"
