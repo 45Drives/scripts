@@ -9,10 +9,11 @@ if ! command -v convert >/dev/null; then
     exit 1
 fi
 
+# MANUFACTURER WIDTH HEIGHT COLOR_FORMAT BIT_DEPTH IMAGE_FORMAT
 MFR_LUT='
 SUPERMICRO 1024 768 truecolor 8 bmp
 GIGABYTE 1024 768 truecolor 8 bmp
-ASROCK 1024 768 truecolor 8 jpg
+ASROCK 800 600 truecolor 8 jpg
 AMI 300 300 truecolor 8 bmp
 '
 
