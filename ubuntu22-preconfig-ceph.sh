@@ -395,6 +395,11 @@ EOF
 		exit $res
 	fi
 	
+	systemctl disable systemd-networkd.service
+	systemctl disable systemd-networkd-wait-online.service
+	systemctl stop systemd-networkd.service
+	systemctl stop systemd-networkd-wait-online.service
+	
 	echo "Successfully enabled network manager."
 	
 	return 0
