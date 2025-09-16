@@ -41,10 +41,17 @@ convert_bytes() {
     fi
 }
 
-# Get list of pools using jq
+# Get list of all pool names
 pools=$(ceph osd lspools -f json | jq -r '.[].poolname')
 
 for pool in $pools; do
+    # Check if this pool has the 'rbd' application
+    app_list=$(ceph osd pool application get "$pool" --format json 2>/dev/null)
+    if ! echo "$app_list" | jq -e 'has("rbd")' > /dev/null; then
+        echo "⏩ Skipping pool '$pool' (no 'rbd' application)"
+        continue
+    fi
+
     images=$(rbd ls "$pool")
 
     for image in $images; do
@@ -67,4 +74,4 @@ for pool in $pools; do
     done
 done
 
-echo "Report saved to $output_file"
+echo "✅ Report saved to $output_file"
