@@ -75,14 +75,14 @@ setup_45drives_repo() {
             echo "Configuring Ceph Stable repository for version 17"
         cat <<EOF > /etc/yum.repos.d/ceph_stable.repo
 [ceph_stable]
-baseurl = http://download.ceph.com/rpm-quincy/el9/\$basearch
+baseurl = http://download.ceph.com/rpm-17.2.7/el9/\$basearch
 gpgcheck = 1
 gpgkey = https://download.ceph.com/keys/release.asc
 name = Ceph Stable \$basearch repo
 priority = 2
 
 [ceph_stable_noarch]
-baseurl = http://download.ceph.com/rpm-quincy/el9/noarch
+baseurl = http://download.ceph.com/rpm-17.2.7/el9/noarch
 gpgcheck = 1
 gpgkey = https://download.ceph.com/keys/release.asc
 name = Ceph Stable noarch repo
