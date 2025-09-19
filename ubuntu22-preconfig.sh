@@ -339,6 +339,10 @@ add_cockpit() {
 	
 	echo "Successfully initialized Houston."
 	
+# Ensure root is not in the Cockpit disallowed users list
+if [ -f /etc/cockpit/disallowed-users ]; then
+    sed -i '/^root$/d' /etc/cockpit/disallowed-users
+fi
 	return 0
 }
 
