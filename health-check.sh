@@ -24,10 +24,10 @@ else
 fi
 
 start_time=$(date +"%Y-%m-%dT%H:%M:%S%:z")
-echo "Starting health check script at $start_time for platform: $platform" | tee -a "$logfile" 
+echo "Starting health check script at $start_time for platform: $platform" | tee -a "$logfile"
 echo "The Health Check Report has been saved in tmp/ folder." | tee -a "$logfile"
 
-# Extract valid remote hostnames from /etc/hosts 
+# Extract valid remote hostnames from /etc/hosts
 remote_hosts=$(awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ && $2 !~ /localhost/ {print $2}' /etc/hosts | sort -u)
 
 collect_from_all_hosts() {
@@ -35,7 +35,7 @@ collect_from_all_hosts() {
     local file_prefix="$2"
     local out_file="$out_dir/${file_prefix}.txt"
 
-    > "$out_file"  
+    > "$out_file"
 
     for host in $remote_hosts; do
         if [ "$host" = "$(hostname)" ]; then
@@ -110,6 +110,15 @@ for i in $(ls /dev | grep -i "^sd[a-z]$"); do
     fi
 done
 ' "drive_age"
+
+# Snapshots (by dataset)
+collect_from_all_hosts '
+datasets=$(zfs list -H -o name -t filesystem,volume 2>/dev/null)
+for ds in $datasets; do
+    echo "Dataset: $ds"
+    zfs list -H -t snapshot -o name -s creation -r "$ds" 2>/dev/null | tail -n 25
+done
+' "zfs_dataset_snapshots"
 
 # Snapshots
 collect_from_all_hosts '
@@ -211,6 +220,10 @@ ceph health > "$out_dir/ceph/health_summary" 2>/dev/null
 ceph health detail > "$out_dir/ceph/health_detail" 2>/dev/null
 ceph report > "$out_dir/ceph/health_report" 2>/dev/null
 ceph df > "$out_dir/ceph/health_df" 2>/dev/null
+if grep -qE 'HEALTH_WARN|HEALTH_ERR' "$out_dir/ceph/health_detail"; then
+    echo "Ceph cluster has warnings or errors:"
+    cat "$out_dir/ceph/health_detail"
+fi
 if command -v lsb_release &> /dev/null; then
     collect_from_all_hosts "lsb_release -a" "lsb_release"
 fi
@@ -260,7 +273,7 @@ for host in $remote_hosts; do
 
   if [ $? -eq 0 ]; then
     echo "CTDB is running on $host. Gathering status..." | tee -a "$logfile"
-    
+
     # Save CTDB output to file
     {
       echo "===== ctdb status ($host) ====="
@@ -280,3 +293,43 @@ done
 if tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"; then
   rm -rf "$out_dir"
 fi
+
+echo "=== SMART Health Warnings $(date) ==="
+
+for dev in $(ls /dev | grep -E "^sd[a-z]$"); do
+    device="/dev/$dev"
+
+    # Collect info
+    serial=$(smartctl -i "$device" 2>/dev/null | grep -i "Serial Number" | awk -F: '{print $2}' | xargs)
+    smartout=$(smartctl -a "$device" 2>/dev/null)
+
+    # Quick health assessment
+    health=$(echo "$smartout" | grep -i "SMART overall-health" | awk -F: '{print $2}' | xargs)
+
+    # Extract key values
+    realloc=$(echo "$smartout" | grep -i "Reallocated_Sector_Ct" | awk '{print $10}')
+    pending=$(echo "$smartout" | grep -i "Current_Pending_Sector" | awk '{print $10}')
+    offline_uncorr=$(echo "$smartout" | grep -i "Offline_Uncorrectable" | awk '{print $10}')
+    crc=$(echo "$smartout" | grep -i "UDMA_CRC_Error_Count" | awk '{print $10}')
+    reserved=$(echo "$smartout" | grep -i "Available_Reservd_Space" | awk '{print $10}')
+
+    # Print warnings only
+    if [[ "$health" == "FAILED" ]]; then
+        echo "[$device | $serial] SMART overall health test FAILED!"
+    fi
+    if [[ -n "$realloc" && "$realloc" -gt 0 ]]; then
+        echo "[$device | $serial] Reallocated sectors detected: $realloc"
+    fi
+    if [[ -n "$pending" && "$pending" -gt 0 ]]; then
+        echo "[$device | $serial] Pending sectors detected: $pending"
+    fi
+    if [[ -n "$offline_uncorr" && "$offline_uncorr" -gt 0 ]]; then
+        echo "[$device | $serial] Offline uncorrectable sectors detected: $offline_uncorr"
+    fi
+    if [[ -n "$crc" && "$crc" -gt 0 ]]; then
+        echo "[$device | $serial] CRC interface errors detected: $crc"
+    fi
+    if [[ -n "$reserved" && "$reserved" -lt 100 ]]; then
+        echo "[$device | $serial] SSD spare blocks low: $reserved%"
+    fi
+done
