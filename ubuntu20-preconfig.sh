@@ -27,7 +27,7 @@ euid=$(id -u)
 
 if [[ "$euid" != 0 ]]; then 
 	echo "Please run as root or with sudo."
-	exit 1
+	exit
 fi
 
 welcome() {
