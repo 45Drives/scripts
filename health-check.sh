@@ -333,3 +333,30 @@ for dev in $(ls /dev | grep -E "^sd[a-z]$"); do
         echo "[$device | $serial] SSD spare blocks low: $reserved%"
     fi
 done
+
+#!/bin/bash
+# Check for hardware-related problems in dmesg output
+
+# List of keywords that usually indicate hardware issues
+keywords=("I/O error" "failed" "hardware error" "buffer I/O" "uncorrectable" "CRC error" "sense key" "end_request" "link reset" "error handler" "device offlined" "S.M.A.R.T. error")
+
+# Get recent dmesg output
+dmesg_output=$(dmesg --ctime --color=never 2>/dev/null)
+
+# Initialize flag
+found_issue=false
+
+# Search for each keyword (case-insensitive)
+for kw in "${keywords[@]}"; do
+    if echo "$dmesg_output" | grep -i -q "$kw"; then
+        echo "⚠️  Possible hardware issue detected: \"$kw\" found in dmesg logs"
+        found_issue=true
+    fi
+done
+
+# If no issues found, print confirmation
+if [ "$found_issue" = false ]; then
+    echo "✅ No hardware-related problems detected in dmesg output."
+else
+    echo "🔍 Review 'dmesg' output above for details. Recommend checking SMART data or system health."
+fi
