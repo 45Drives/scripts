@@ -59,7 +59,12 @@ echo "setting hostname to:" $HOSTNAME.REALM
 hostnamectl set-hostname $HOSTNAME.$REALM
 currentTimestamp=`date +%y-%m-%d-%H:%M:%S`
 echo "Backing up existing samba conf to:" /etc/samba/smb.conf.$currentTimestamp.bak
-mv /etc/samba/smb.conf /etc/samba/smb.conf.$currentTimestamp.bak
+if [ -f /etc/samba/smb.conf ]; then
+    mv /etc/samba/smb.conf /etc/samba/smb.conf.$currentTimestamp.bak
+    echo "Moved /etc/samba/smb.conf to /etc/samba/smb.conf.$currentTimestamp.bak"
+else
+    echo "File /etc/samba/smb.conf does not exist. Skipping."
+fi
 echo "Generating kerberos ticket, please enter password at the prompt....."
 kinit $USERNAME@$REALM
 echo "Validating we can discover the domain....."
