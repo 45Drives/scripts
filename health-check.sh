@@ -30,6 +30,10 @@ echo "The Health Check Report has been saved in tmp/ folder." | tee -a "$logfile
 # Extract valid remote hostnames from /etc/hosts
 remote_hosts=$(awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ && $2 !~ /localhost/ {print $2}' /etc/hosts | sort -u)
 
+if [ -z "$remote_hosts" ]; then
+    remote_hosts=$(hostname)
+fi
+
 collect_from_all_hosts() {
     local cmd="$1"
     local file_prefix="$2"
