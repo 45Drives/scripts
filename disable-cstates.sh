@@ -10,7 +10,7 @@ SERVICE_UNIT="disable-cstates.service"
 SERVICE_PATH="/etc/systemd/system/${SERVICE_UNIT}"
 SCRIPT_PATH="/usr/local/bin/disable-cstates-except0.sh"
 
-echo "CPU C state hardening script"
+echo "Disable CPU states Script"
 echo
 
 # Basic safety checks
