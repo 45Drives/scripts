@@ -176,8 +176,9 @@ collect_from_all_hosts "ip route show default" "default_route"
 collect_from_all_hosts "cat /etc/os-release" "linux_distribution"
 collect_from_all_hosts "last reboot" "reboot_history"
 collect_from_all_hosts "systemctl status winbind" "winbind_status"
-collect_from_all_hosts "apt list --upgradable" "updates"
-
+if [[ -f /etc/debian_version ]]; then
+  collect_from_all_hosts "apt list --upgradable" "updates"
+fi
 ceph -s > "$out_dir/ceph_status.txt" 2>/dev/null
 
 collect_from_all_hosts '
