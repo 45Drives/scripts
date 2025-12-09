@@ -83,7 +83,7 @@ houston_configuration() {
     echo "Installing Cockpit and Modules"
     dnf -y install dnf-plugins-core
     crb enable
-    dnf install -y --nobest cockpit cockpit-benchmark cockpit-bridge cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-storaged cockpit-scheduler 
+    dnf install -y --nobest cockpit cockpit-benchmark cockpit-bridge cockpit-navigator cockpit-file-sharing cockpit-45drives-hardware cockpit-identities cockpit-storaged cockpit-scheduler nano tuned 
     res=$?
     if [[ $res != 0 ]]; then
         echo "Error Installing Cockpit"

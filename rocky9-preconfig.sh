@@ -195,7 +195,7 @@ houston_configuration() {
     crb enable
     dnf install -y \
         cockpit cockpit-benchmark cockpit-navigator cockpit-file-sharing \
-        cockpit-45drives-hardware cockpit-identities cockpit-bridge cockpit-storaged cockpit-scheduler cockpit-zfs zfs zfs-dkms 
+        cockpit-45drives-hardware cockpit-identities cockpit-bridge cockpit-storaged cockpit-scheduler cockpit-zfs zfs zfs-dkms nano tuned 
     res=$?
     if [[ $res != 0 ]]; then
         echo "Error Installing Cockpit"
