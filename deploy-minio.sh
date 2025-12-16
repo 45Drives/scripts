@@ -38,7 +38,7 @@ echo "[3/10] Installing wget..."
 sudo $PM install -y wget
 
 echo "[4/10] Downloading and setting up MinIO binary..."
-sudo wget https://dl.min.io/server/minio/release/linux-amd64/minio -O /usr/local/bin/minio
+sudo wget https://dl.min.io/community/server/minio/release/linux-amd64/archive/minio.RELEASE.2025-04-22T22-12-26Z -O /usr/local/bin/minio
 sudo chmod +x /usr/local/bin/minio
 
 echo "[5/10] Creating ZFS filesystem ${POOL_NAME}/minio..."
