@@ -234,7 +234,7 @@ for i in "${!OSD_LIST[@]}"; do
     done
 
     OK_TO_STOP=$(ceph osd ok-to-stop $OSD_ID)
-    if [ $OK_TOP_STOP -ne 0 ];
+    if [ $OK_TOP_STOP -ne 0 ]; then
        echo "Error: stopping osd.$OSD_ID would result in data unavailability"
        exit 1
     fi
