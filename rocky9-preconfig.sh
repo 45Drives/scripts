@@ -149,9 +149,9 @@ install_zfs() {
     # Enable the zfs repo if not already
     dnf config-manager --set-enabled zfs
 
-    echo "Installing dependencies: dkms, kernel headers, ZFS"
+    echo "Installing dependencies: dkms, kernel headers, ZFS, ZFS-dkms"
     dnf install -y epel-release
-    dnf install -y dkms gcc make perl kernel-devel kernel-headers zfs
+    dnf install -y dkms gcc make perl kernel-devel kernel-headers zfs zfs-dkms
     res=$?
     if [[ $res != 0 ]]; then 
         echo "ZFS and dependencies install failed"
@@ -195,7 +195,7 @@ houston_configuration() {
     crb enable
     dnf install -y \
         cockpit cockpit-benchmark cockpit-navigator cockpit-file-sharing \
-        cockpit-45drives-hardware cockpit-identities cockpit-bridge cockpit-storaged cockpit-scheduler cockpit-zfs zfs zfs-dkms nano tuned 
+        cockpit-45drives-hardware cockpit-identities cockpit-bridge cockpit-storaged cockpit-scheduler cockpit-zfs nano tuned
     res=$?
     if [[ $res != 0 ]]; then
         echo "Error Installing Cockpit"
