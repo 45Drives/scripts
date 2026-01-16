@@ -233,12 +233,6 @@ for i in "${!OSD_LIST[@]}"; do
         CEPH_STATUS=$(ceph health --format json | jq -r '.status')
     done
 
-    OK_TO_STOP=$(ceph osd ok-to-stop $OSD_ID)
-    if [[ $OK_TOP_STOP -ne 0 ]]; then
-       echo "Error: stopping osd.$OSD_ID would result in data unavailability"
-       exit 1
-    fi
-
     echo "Set noout"
     ceph osd set noout
     echo "Stop OSD.$OSD_ID"
