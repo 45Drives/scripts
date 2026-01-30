@@ -43,30 +43,45 @@ sudo chmod +x /usr/local/bin/minio
 
 echo "[5/10] Creating ZFS filesystem ${POOL_NAME}/minio..."
 
-if sudo zfs list ${POOL_NAME}/minio &>/dev/null; then
-    echo "❗ The ZFS dataset ${POOL_NAME}/minio already exists."
-    read -p "Do you want to delete and recreate it? This will erase all data in it. (y/n): " RECREATE
-    if [[ "$RECREATE" == "y" ]]; then
-        echo "Destroying existing dataset ${POOL_NAME}/minio..."
-        sudo zfs destroy -r ${POOL_NAME}/minio
-        echo "Creating new dataset ${POOL_NAME}/minio..."
-        sudo zfs create -o recordsize=1M -o atime=off -o xattr=sa -o compression=lz4 ${POOL_NAME}/minio
-    elif [[ "$RECREATE" == "n" ]]; then
-        read -p "Do you want to deploy on top of existing data? (y/n): " REUSE
-        if [[ "$REUSE" == "y" ]]; then
-            echo "Reusing existing dataset ${POOL_NAME}/minio..."
-        else
-            echo "Exiting"
-            exit 1
-        fi
-    else
-        echo "Invalid option. Exiting."
-        exit 1
-    fi
-else
-    echo "Creating new dataset ${POOL_NAME}/minio..."
-    sudo zfs create -o recordsize=1M -o atime=off -o xattr=sa -o compression=lz4 ${POOL_NAME}/minio
+# Ensure pool exists
+if ! sudo zpool list -H -o name | grep -qx "${POOL_NAME}"; then
+  echo "ERROR: ZFS pool '${POOL_NAME}' not found. Pools available:"
+  sudo zpool list
+  exit 1
 fi
+
+DATASET="${POOL_NAME}/minio"
+
+# Existence check with timeout so it cannot "stick"
+if timeout 10s sudo zfs list -H -o name "$DATASET" >/dev/null 2>&1; then
+  echo "WARNING: The ZFS dataset $DATASET already exists."
+  read -p "Do you want to delete and recreate it? This will erase all data in it. (y/n): " RECREATE
+  if [[ "$RECREATE" == "y" ]]; then
+    echo "Destroying existing dataset $DATASET..."
+    sudo zfs destroy -r "$DATASET"
+    echo "Creating new dataset $DATASET..."
+    sudo zfs create -o recordsize=1M -o atime=off -o xattr=sa -o compression=lz4 "$DATASET"
+  elif [[ "$RECREATE" == "n" ]]; then
+    read -p "Do you want to deploy on top of existing data? (y/n): " REUSE
+    if [[ "$REUSE" != "y" ]]; then
+      echo "Exiting"
+      exit 1
+    fi
+  else
+    echo "Invalid option. Exiting."
+    exit 1
+  fi
+else
+  rc=$?
+  if [ "$rc" -eq 124 ]; then
+    echo "ERROR: ZFS command timed out. ZFS may be unhealthy or blocked."
+    echo "Try: sudo zpool status ; sudo dmesg -T | tail -n 200 | grep -i zfs"
+    exit 1
+  fi
+  echo "Creating new dataset $DATASET..."
+  sudo zfs create -o recordsize=1M -o atime=off -o xattr=sa -o compression=lz4 "$DATASET"
+fi
+
 
 
 
@@ -154,5 +169,51 @@ echo "Enabling and starting MinIO service..."
 sudo systemctl daemon-reload
 sudo systemctl enable --now minio
 
+echo "Installing MinIO client (mc)..."
+sudo $PM install -y curl
+sudo curl -fL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+sudo chmod +x /usr/local/bin/mc
+
+MC_BIN="/usr/local/bin/mc"
+if [[ ! -x "$MC_BIN" ]]; then
+  echo "ERROR: mc not found or not executable at $MC_BIN"
+  ls -l "$MC_BIN" || true
+  exit 1
+fi
+
+
+# Determine scheme: https if cert exists, else http
+SCHEME="http"
+if [[ -f /etc/minio/certs/public.crt ]]; then
+  SCHEME="https"
+
+  echo "Trusting MinIO certificate (self-signed)..."
+  if [[ "$OS" == 'NAME="Rocky Linux"' ]]; then
+    sudo cp /etc/minio/certs/public.crt /etc/pki/ca-trust/source/anchors/minio.crt
+    sudo update-ca-trust
+  elif [[ "$OS" == 'NAME="Ubuntu"' ]]; then
+    sudo cp /etc/minio/certs/public.crt /usr/local/share/ca-certificates/minio.crt
+    sudo update-ca-certificates
+  fi
+fi
+
+echo "Waiting for MinIO to become ready..."
+for i in {1..60}; do
+  if curl -fsS -k "${SCHEME}://127.0.0.1:9000/minio/health/ready" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+echo "Creating mc alias houston (for root)..."
+ "$MC_BIN" alias set houston "${SCHEME}://127.0.0.1:9000" "${MINIO_USER}" "${MINIO_PASSWORD}"
+
+echo "Verifying MinIO admin access via mc..."
+ "$MC_BIN" --json admin info houston >/dev/null
+
+echo "mc alias houston created and verified."
+
+
 echo "=== Setup Complete ==="
 echo "Visit https://YOUR_SERVER_IP:7575 to access the MinIO console."
+
