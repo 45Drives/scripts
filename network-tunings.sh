@@ -103,7 +103,9 @@ cat > "$SYSCTL_FILE" <<EOF
 net.core.netdev_budget=$NETDEV_BUDGET
 EOF
 
-sysctl --system >/dev/null
+if ! sysctl -p "$SYSCTL_FILE" >/dev/null; then
+  echo "Warning: failed to apply sysctl settings from $SYSCTL_FILE" >&2
+fi
 
 echo
 echo "Validating applied settings..."
