@@ -2,7 +2,7 @@
 
 # Matthew Hutchinson <mhutchinson@45drives.com>
 
-if [ $EUID -ne 0 ]; then echo "Must be run as root!" >&2 exit 2 fi
+if [ $EUID -ne 0 ]; then echo "Must be run as root!" >&2; exit 2; fi
 
 set -e
 
@@ -124,8 +124,8 @@ if [[ "$USE_SSL" == "y" ]]; then
     openssl req -new -x509 -key /etc/minio/certs/private.key -out /etc/minio/certs/public.crt -days 3650
     chown -R minio-user:minio-user /etc/minio/certs
     chmod 600 /etc/minio/certs/private.key
-else 
-echo -e "\033[1;36mPlace SSL certs in \"/etc/minio/certs\" for custom certificates\033[0m"
+else
+    echo -e "\033[1;36mPlace SSL certs in \"/etc/minio/certs\" for custom certificates\033[0m"
 fi
 
 echo "Creating systemd service for MinIO..."
