@@ -151,7 +151,7 @@ install_zfs() {
 
     echo "Installing dependencies: dkms, kernel headers, ZFS, ZFS-dkms"
     dnf install -y epel-release
-    dnf install -y dkms gcc make perl kernel-devel kernel-headers zfs zfs-dkms
+    dnf install -y dkms gcc make perl kernel-devel kernel-headers kernel-modules zfs zfs-dkms
     res=$?
     if [[ $res != 0 ]]; then 
         echo "ZFS and dependencies install failed"
