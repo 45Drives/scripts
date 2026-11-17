@@ -138,17 +138,6 @@ install_zfs() {
     echo "Pulling down ZFS packages"
     source /etc/os-release
 
-    # Install the ZFS repo
-    dnf install -y https://zfsonlinux.org/epel/zfs-release-2-3$(rpm --eval "%{dist}").noarch.rpm
-    res=$?
-    if [[ $res != 0 ]]; then  
-        echo "ZFS package install failed!"
-        exit $res
-    fi
-
-    # Enable the zfs repo if not already
-    dnf config-manager --set-enabled zfs
-
     echo "Installing dependencies: dkms, kernel headers, ZFS, ZFS-dkms"
     dnf install -y epel-release
     dnf install -y dkms gcc make perl kernel-devel kernel-headers kernel-modules zfs zfs-dkms
