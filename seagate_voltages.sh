@@ -54,6 +54,41 @@ read_voltages() {
     fi
 }
 
+usage() {
+    printf 'Usage: %s [ -h -f -v VALUE ]\n' "$0"
+    echo
+    echo 'Options:'
+    echo '  -h - Print this message'
+    echo '  -c - Force colour output'
+    echo '  -n - Force no colour output'
+}
+
+if [ -t 1 ]; then
+    # is tty
+    COLOR=true
+else
+    COLOR=false
+fi
+
+while getopts 'hcn' opt; do
+    case $opt in
+    h)
+        usage
+        exit 0
+        ;;
+    c)
+        COLOR=true
+        ;;
+    n)
+        COLOR=false
+        ;;
+    *)
+
+        ;;
+    esac
+done
+shift $((OPTIND - 1))
+
 if [ $# -eq 0 ]; then
     DEVS=(/dev/disk/by-vdev/*)
 else
@@ -63,7 +98,7 @@ fi
 TOL_ERR=0.10
 TOL_WARN=0.05
 
-if [ -t 1 ]; then
+if $COLOR; then
     # Enable color output if the terminal supports it
     format_colours() {
         awk -v TOL_ERR="$TOL_ERR" -v TOL_WARN="$TOL_WARN" '
@@ -82,26 +117,26 @@ if [ -t 1 ]; then
         if ($2 == "N/A") {
             $2 = $2
         } else if ($2 > (12 * (1+TOL_ERR)) || $2 < (12 * (1-TOL_ERR))) {
-            $2 = "\033[91;1m" $2 "\033[0m"
+            $2 = "\033[31;1m" $2 "\033[0m"
         } else if ($2 > (12 * (1+TOL_WARN)) || $2 < (12 * (1-TOL_WARN))) {
             $2 = "\033[33;1m" $2 "\033[0m"
         } else {
-            $2 = "\033[92;1m" $2 "\033[0m"
+            $2 = "\033[32;1m" $2 "\033[0m"
         }
         if ($5 == "N/A") {
             $5 = $5
         } else if ($5 > (5 * (1+TOL_ERR)) || $5 < (5 * (1-TOL_ERR))) {
-            $5 = "\033[91;1m" $5 "\033[0m"
+            $5 = "\033[31;1m" $5 "\033[0m"
         } else if ($5 > (5 * (1+TOL_WARN)) || $5 < (5 * (1-TOL_WARN))) {
             $5 = "\033[33;1m" $5 "\033[0m"
         } else {
-            $5 = "\033[92;1m" $5 "\033[0m"
+            $5 = "\033[32;1m" $5 "\033[0m"
         }
         print
         }'
     }
     explain_colours() {
-        echo -e "Voltage indicators: \033[91;1m>10% out of tolerance\033[0m \033[33;1m>5% out of tolerance\033[0m \033[92;1mNormal\033[0m"
+        echo -e "Voltage indicators: \033[31;1m>10% out of tolerance\033[0m \033[33;1m>5% out of tolerance\033[0m \033[32;1mNormal\033[0m"
     }
 else
     format_colours() {
